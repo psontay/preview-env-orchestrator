@@ -1,0 +1,19 @@
+# Biến môi trường thật — KHÔNG commit (chỉ commit .env.example)
+.env
+.env.*
+!.env.example
+
+# Binary / artefact build ra
+/api
+/bin/
+/out/
+
+# Go
+*.test
+*.prof
+coverage.out
+coverage.html
+
+# IDE
+.idea/
+.vscode/

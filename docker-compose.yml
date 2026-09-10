@@ -1,11 +1,16 @@
-# docker-compose cho môi trường quan sát (observability) khi phát triển.
+# docker-compose: chạy toàn bộ stack demo cùng lúc.
 #
-#   docker compose up -d jaeger
-#   go run ./cmd/api          # app gửi span qua OTLP/gRPC tới cổng 4317
-#   mở http://localhost:16686 để xem trace
+#   docker compose up -d --build
+#   # app:      http://localhost:8080  (/healthz, /webhooks/github)
+#   # Jaeger:   http://localhost:16686 (xem trace)
+#   # Postgres: localhost:5432
 #
-# Prompt 6 sẽ mở rộng file này để chạy kèm cả app + Postgres. Hiện tại
-# chỉ cần Jaeger all-in-one để "docker compose up" là xem được trace ngay.
+# Postgres có healthcheck; service `app` chỉ khởi động sau khi Postgres
+# báo healthy (depends_on: condition: service_healthy).
+#
+# Biến môi trường lấy từ file .env cùng thư mục (compose tự nạp) —
+# xem .env.example. Mọi biến đều có giá trị mặc định để "up" được ngay
+# cả khi chưa tạo .env.
 services:
   jaeger:
     image: jaegertracing/all-in-one:1.60
@@ -17,3 +22,46 @@ services:
       - "16686:16686" # Jaeger UI (xem trace trên trình duyệt)
       - "4317:4317"   # OTLP/gRPC — endpoint mà setupTracing() trỏ tới
       - "4318:4318"   # OTLP/HTTP — để sẵn nếu sau này đổi exporter
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: peo-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-preview}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-preview}
+      POSTGRES_DB: ${POSTGRES_DB:-preview}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # File *.sql chạy 1 lần khi volume còn trống -> auto-migrate lúc dựng mới.
+      - ./migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-preview} -d ${POSTGRES_DB:-preview}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    container_name: peo-app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      jaeger:
+        condition: service_started
+    environment:
+      # Trong mạng compose, service khác gọi nhau bằng tên service.
+      DATABASE_URL: postgres://${POSTGRES_USER:-preview}:${POSTGRES_PASSWORD:-preview}@postgres:5432/${POSTGRES_DB:-preview}?sslmode=disable
+      STORAGE_DRIVER: ${STORAGE_DRIVER:-postgres}
+      DOCKER_DRIVER: ${DOCKER_DRIVER:-mock}
+      GITHUB_DRIVER: ${GITHUB_DRIVER:-mock}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET:-}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-jaeger:4317}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8080}
+    ports:
+      - "8080:8080"
+
+volumes:
+  pgdata:
