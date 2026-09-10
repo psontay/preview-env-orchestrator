@@ -19,14 +19,14 @@ import (
 	"preview-env-orchestrator/internal/domain"
 	dockerinfra "preview-env-orchestrator/internal/infrastructure/docker"
 	"preview-env-orchestrator/internal/infrastructure/memory"
+	"preview-env-orchestrator/internal/infrastructure/postgres"
 )
 
 func main() {
 	// ---- Wiring (Composition Root) ----
 	// Đây là NƠI DUY NHẤT trong toàn bộ codebase biết về các implementation
 	// cụ thể. Domain và Application layer chỉ biết tới interface.
-	prRepo := memory.NewPullRequestRepository()
-	envRepo := memory.NewEnvironmentRepository()
+	prRepo, envRepo := newRepositories()
 	dockerSvc := dockerinfra.NewMockService()
 	notifier := memory.NewGitHubNotifier()
 
@@ -65,6 +65,31 @@ func getenv(key, def string) string {
 		return v
 	}
 	return def
+}
+
+// newRepositories chọn adapter lưu trữ theo biến môi trường STORAGE_DRIVER:
+//
+//	memory   (mặc định) — in-process, mất khi restart, tiện cho dev/demo
+//	postgres            — dùng pgxpool, đọc DSN từ DATABASE_URL
+//
+// Cả hai đều implement cùng interface trong internal/domain nên phần còn lại
+// của chương trình không đổi.
+func newRepositories() (domain.PullRequestRepository, domain.EnvironmentRepository) {
+	switch driver := getenv("STORAGE_DRIVER", "memory"); driver {
+	case "postgres":
+		pool, err := postgres.NewPool(context.Background())
+		if err != nil {
+			log.Fatalf("storage=postgres: %v", err)
+		}
+		log.Printf("storage: postgres")
+		return postgres.NewPullRequestRepository(pool), postgres.NewEnvironmentRepository(pool)
+	case "memory":
+		log.Printf("storage: memory (in-process, không bền vững)")
+		return memory.NewPullRequestRepository(), memory.NewEnvironmentRepository()
+	default:
+		log.Fatalf("STORAGE_DRIVER không hợp lệ: %q (chấp nhận: memory | postgres)", driver)
+		return nil, nil
+	}
 }
 
 func runCleanupLoop(svc *application.CleanupService, interval time.Duration) {
