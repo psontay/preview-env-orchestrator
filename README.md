@@ -1,5 +1,9 @@
 # preview-env-orchestrator
 
+[![CI](https://github.com/psontay/preview-env-orchestrator/actions/workflows/ci.yml/badge.svg)](https://github.com/psontay/preview-env-orchestrator/actions/workflows/ci.yml)
+[![Go 1.25](https://img.shields.io/badge/Go-1.25-00ADD8?logo=go&logoColor=white)](go.mod)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 Cổng điều phối môi trường preview theo Pull Request, thiết kế theo
 Domain-Driven Design. Nhận webhook GitHub → kiểm tra idempotency & quota →
 dựng môi trường (Docker) bất đồng bộ → comment link vào PR → tự động dọn
@@ -43,6 +47,162 @@ migrations/001_init.sql        # Schema Postgres khớp với domain model
   (một hành vi lưu trữ), còn Quota là trách nhiệm của `domain.Quota`
   (một business rule thuần) — được `WebhookService` phối hợp gọi theo
   đúng thứ tự, không lẫn logic vào nhau.
+
+### Sơ đồ lớp — Aggregate, Value Object, Service, Port/Adapter
+
+```mermaid
+classDiagram
+    direction LR
+
+    class PullRequest {
+        <<Aggregate Root>>
+        +string ID
+        +string Repo
+        +int Number
+        +string CommitHash
+        +PRStatus Status
+        +IdempotencyKey() string
+    }
+
+    class PreviewEnvironment {
+        <<Aggregate Root>>
+        +string ID
+        +string PullRequestID
+        +EnvStatus Status
+        +string URL
+        +string ContainerID
+        +TTL TTL
+        +time MarkedForDeletionAt
+        +IsExpired(now) bool
+        +MarkForDeletion(now)
+        +CancelDeletion()
+        +ReadyToDestroy(now, grace) bool
+    }
+
+    class Quota {
+        <<Value Object>>
+        +int MaxEnvironments
+        +IsExceeded(current) bool
+    }
+
+    class TTL {
+        <<Value Object>>
+        +Duration Duration
+        +ExpiresAt(from) time
+    }
+
+    class PullRequestRepository {
+        <<port>>
+        +FindByIdempotencyKey(key)
+        +Save(pr)
+    }
+    class EnvironmentRepository {
+        <<port>>
+        +TryAcquireLock(key) bool
+        +CountActiveByRepo(repo) int
+        +FindExpired(now)
+        +FindMarkedForDeletion(now)
+        +Save(env)
+    }
+    class DockerOrchestrationService {
+        <<port>>
+        +Provision(req) ProvisionResult
+        +Destroy(containerID)
+    }
+    class GitHubNotifier {
+        <<port>>
+        +CommentOnPR(repo, num, msg)
+    }
+
+    class WebhookService {
+        <<Domain Service>>
+        +HandlePullRequestEvent(evt)
+    }
+    class CleanupService {
+        <<Domain Service>>
+        +SweepOnce(now)
+    }
+
+    class PostgresEnvRepository {
+        <<adapter>>
+    }
+    class MemoryEnvRepository {
+        <<adapter / test double>>
+    }
+    class DockerRealService {
+        <<adapter>>
+    }
+    class DockerMockService {
+        <<adapter / test double>>
+    }
+    class GitHubRESTNotifier {
+        <<adapter>>
+    }
+
+    PreviewEnvironment *-- TTL : composition
+    PullRequest ..> PreviewEnvironment : sinh ra (idempotency key)
+    WebhookService --> Quota : kiểm tra business rule
+    WebhookService ..> PullRequestRepository
+    WebhookService ..> EnvironmentRepository
+    WebhookService ..> DockerOrchestrationService
+    WebhookService ..> GitHubNotifier
+    CleanupService ..> EnvironmentRepository
+    CleanupService ..> DockerOrchestrationService
+    CleanupService ..> GitHubNotifier
+
+    EnvironmentRepository <|.. PostgresEnvRepository
+    EnvironmentRepository <|.. MemoryEnvRepository
+    DockerOrchestrationService <|.. DockerRealService
+    DockerOrchestrationService <|.. DockerMockService
+    GitHubNotifier <|.. GitHubRESTNotifier
+```
+
+### Luồng nghiệp vụ — từ webhook tới cleanup
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant GH as GitHub
+    participant H as webhook_handler
+    participant WS as WebhookService
+    participant ER as EnvironmentRepository
+    participant Q as domain.Quota
+    participant DK as DockerOrchestrationService
+    participant GN as GitHubNotifier
+    participant CS as CleanupService (worker)
+
+    GH->>H: POST /webhooks/github (+ chữ ký HMAC-SHA256)
+    H->>H: VerifyGitHubSignature
+    H->>WS: HandlePullRequestEvent
+    WS->>ER: TryAcquireLock(idempotencyKey)
+    alt key đã tồn tại
+        ER-->>WS: false → dừng (idempotent, không tạo trùng)
+    else lock được cấp
+        WS->>ER: CountActiveByRepo(repo)
+        WS->>Q: IsExceeded(current)?
+        alt vượt quota
+            Q-->>WS: true → ErrQuotaExceeded
+        else còn quota
+            WS->>DK: Provision(image, seedSQL) [async]
+            DK-->>WS: ProvisionResult{containerID, URL}
+            WS->>ER: Save(env RUNNING)
+            WS->>GN: CommentOnPR("URL sẵn sàng + link Hủy lệnh xoá")
+        end
+    end
+
+    loop mỗi N phút
+        CS->>ER: FindExpired(now)
+        CS->>ER: Save(env MARK_FOR_DELETION)  %% đánh dấu, chưa xoá
+        CS->>GN: CommentOnPR("sẽ xoá sau grace period — Hủy tại /cancel-deletion")
+        CS->>ER: FindMarkedForDeletion(now)
+        alt ReadyToDestroy(now, grace)
+            CS->>DK: Destroy(containerID)
+            CS->>ER: Save(env DESTROYED)
+        else vừa CancelDeletion()
+            CS-->>CS: bỏ qua, env đã quay lại RUNNING
+        end
+    end
+```
 
 ## Chạy thử
 
@@ -91,3 +251,18 @@ cần hạ tầng. Trước khi deploy thật, xem 3 tài liệu trong `docs/`:
 
 Tất cả các thay đổi trên chỉ cần sửa ở `internal/infrastructure/` và dây
 lại ở `cmd/api/main.go` — không cần đụng vào `domain/` hay `application/`.
+
+## Đóng góp
+
+Dự án hoan nghênh đóng góp. Quy trình fork → nhánh → Conventional Commits →
+pull request, cùng các lệnh kiểm tra bắt buộc trước khi mở PR, được mô tả
+đầy đủ trong [CONTRIBUTING.md](CONTRIBUTING.md).
+
+- Báo lỗi: dùng template **Bug report** trong `.github/ISSUE_TEMPLATE/`.
+- Đề xuất tính năng: dùng template **Feature request**.
+- Mọi PR cần điền [PULL_REQUEST_TEMPLATE.md](.github/PULL_REQUEST_TEMPLATE.md)
+  và giữ nguyên 4 điểm nhấn: Idempotency, Quota, TTL, Destructive-safety.
+
+## License
+
+Phát hành theo giấy phép [MIT](LICENSE).
