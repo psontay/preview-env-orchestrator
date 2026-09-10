@@ -1,0 +1,89 @@
+# CI — chạy trên mọi push/PR nhắm vào nhánh chính.
+#
+# 2 job nối tiếp nhau:
+#   1. build-test  : gofmt / vet / build / test (KHÔNG build tag) + race + cover.
+#   2. integration : chỉ chạy sau khi build-test pass, chạy các test có build
+#                    tag `integration` (Prompt 2 + Prompt 3).
+#
+# Ghi chú về Postgres: đề bài gợi ý dùng `services: postgres:` của GitHub
+# Actions, nhưng integration test trong repo này (postgres + docker) dựa trên
+# testcontainers-go — mỗi test tự bật container tạm qua Docker daemon. Runner
+# `ubuntu-latest` đã có sẵn Docker, nên testcontainers chạy trực tiếp, không
+# cần khai báo service. Vẫn giữ 1 `services: postgres` như một Postgres dự
+# phòng (biến DATABASE_URL) cho bước nào cần DB ngoài mà không muốn spin
+# container.
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    name: build & unit test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: gofmt (fail nếu có file chưa format)
+        run: |
+          out="$(gofmt -l .)"
+          if [ -n "$out" ]; then
+            echo "::error::Các file sau chưa gofmt:"
+            echo "$out"
+            exit 1
+          fi
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: go build
+        run: go build ./...
+
+      - name: go test (race + cover)
+        run: go test ./... -race -cover
+
+  integration:
+    name: integration test (build tag=integration)
+    needs: build-test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: preview
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test -d preview"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgres://test:test@localhost:5432/preview?sslmode=disable
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: go test -tags=integration
+        # testcontainers-go tự bật Postgres/Docker container tạm; runner đã có
+        # sẵn Docker daemon nên không cần thêm cấu hình.
+        run: go test -tags=integration ./... -race -cover
