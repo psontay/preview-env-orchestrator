@@ -18,6 +18,7 @@ import (
 	"preview-env-orchestrator/internal/application"
 	"preview-env-orchestrator/internal/domain"
 	dockerinfra "preview-env-orchestrator/internal/infrastructure/docker"
+	"preview-env-orchestrator/internal/infrastructure/github"
 	"preview-env-orchestrator/internal/infrastructure/memory"
 	"preview-env-orchestrator/internal/infrastructure/postgres"
 )
@@ -28,7 +29,7 @@ func main() {
 	// cụ thể. Domain và Application layer chỉ biết tới interface.
 	prRepo, envRepo := newRepositories()
 	dockerSvc := newDockerService()
-	notifier := memory.NewGitHubNotifier()
+	notifier := newGitHubNotifier()
 
 	quota := domain.Quota{MaxEnvironments: 5}
 	defaultTTL := domain.TTL{Duration: 24 * time.Hour}
@@ -46,7 +47,13 @@ func main() {
 
 	// ---- HTTP server ----
 	mux := http.NewServeMux()
-	mux.Handle("/webhooks/github", handlers.NewWebhookHandler(webhookService))
+	// Webhook được bọc bởi middleware xác thực chữ ký HMAC-SHA256 của
+	// GitHub (header X-Hub-Signature-256). Secret đọc từ GITHUB_WEBHOOK_SECRET.
+	webhookHandler := handlers.VerifyGitHubSignature(
+		os.Getenv("GITHUB_WEBHOOK_SECRET"),
+		handlers.NewWebhookHandler(webhookService),
+	)
+	mux.Handle("/webhooks/github", webhookHandler)
 	mux.Handle("POST /environments/{id}/cancel-deletion", handlers.NewCancelDeletionHandler(envRepo))
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -111,6 +118,29 @@ func newDockerService() application.DockerOrchestrationService {
 		return dockerinfra.NewMockService()
 	default:
 		log.Fatalf("DOCKER_DRIVER không hợp lệ: %q (chấp nhận: mock | real)", driver)
+		return nil
+	}
+}
+
+// newGitHubNotifier chọn adapter thông báo GitHub theo biến môi trường
+// GITHUB_DRIVER:
+//
+//	mock (mặc định) — in ra console, không gọi mạng
+//	real            — gọi GitHub REST API thật, cần GITHUB_TOKEN
+func newGitHubNotifier() application.GitHubNotifier {
+	switch driver := getenv("GITHUB_DRIVER", "mock"); driver {
+	case "real":
+		n, err := github.NewNotifierFromEnv()
+		if err != nil {
+			log.Fatalf("github=real: %v", err)
+		}
+		log.Printf("github: real (REST API)")
+		return n
+	case "mock":
+		log.Printf("github: mock (in ra console)")
+		return memory.NewGitHubNotifier()
+	default:
+		log.Fatalf("GITHUB_DRIVER không hợp lệ: %q (chấp nhận: mock | real)", driver)
 		return nil
 	}
 }
