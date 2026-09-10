@@ -1,0 +1,19 @@
+# docker-compose cho môi trường quan sát (observability) khi phát triển.
+#
+#   docker compose up -d jaeger
+#   go run ./cmd/api          # app gửi span qua OTLP/gRPC tới cổng 4317
+#   mở http://localhost:16686 để xem trace
+#
+# Prompt 6 sẽ mở rộng file này để chạy kèm cả app + Postgres. Hiện tại
+# chỉ cần Jaeger all-in-one để "docker compose up" là xem được trace ngay.
+services:
+  jaeger:
+    image: jaegertracing/all-in-one:1.60
+    container_name: peo-jaeger
+    environment:
+      # Bật đầu vào OTLP (gRPC 4317 + HTTP 4318) trên Jaeger collector.
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "16686:16686" # Jaeger UI (xem trace trên trình duyệt)
+      - "4317:4317"   # OTLP/gRPC — endpoint mà setupTracing() trỏ tới
+      - "4318:4318"   # OTLP/HTTP — để sẵn nếu sau này đổi exporter

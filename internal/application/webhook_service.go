@@ -6,8 +6,26 @@ import (
 	"log"
 	"time"
 
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
+
 	"preview-env-orchestrator/internal/domain"
 )
+
+// tracer là handle OpenTelemetry dùng chung cho package application. Tên
+// "preview-env-orchestrator" là instrumentation scope — nó xuất hiện trên
+// mỗi span để biết span do phần code nào tạo ra.
+var tracer = otel.Tracer("preview-env-orchestrator")
+
+// endSpanErr đánh dấu span là lỗi (ghi lại error + set status Error) rồi
+// đóng span. Gom lại một chỗ để các nhánh return sớm bên dưới gọn hơn.
+func endSpanErr(span trace.Span, err error) {
+	span.RecordError(err)
+	span.SetStatus(codes.Error, err.Error())
+	span.End()
+}
 
 // ErrQuotaExceeded được trả về khi repo đã đạt giới hạn số environment
 // đang hoạt động đồng thời.
@@ -58,35 +76,53 @@ func NewWebhookService(
 //  4. Lưu trạng thái PROVISIONING
 //  5. Provisioning bất đồng bộ (không block HTTP handler)
 func (s *WebhookService) HandlePullRequestEvent(ctx context.Context, pr *domain.PullRequest) error {
+	// parentCtx giữ span cha (webhook.receive_and_parse do handler mở) để
+	// cả span "ghi DB" lẫn span "provisioning" bên dưới đều treo trực tiếp
+	// vào nó — chúng là hai bước song song về mặt ngữ nghĩa, không phải
+	// bước con lồng nhau.
+	parentCtx := ctx
 	key := pr.IdempotencyKey()
+
+	// ---- Span 2: ghi trạng thái vào DB (idempotency lock + quota + save) ----
+	ctx, dbSpan := tracer.Start(ctx, "webhook.persist_state")
+	dbSpan.SetAttributes(attribute.String("idempotency.key", key))
 
 	acquired, err := s.envRepo.TryAcquireLock(ctx, key)
 	if err != nil {
+		endSpanErr(dbSpan, err)
 		return err
 	}
 	if !acquired {
 		log.Printf("[webhook] key=%s đang được xử lý bởi tiến trình khác, bỏ qua", key)
+		dbSpan.AddEvent("idempotency: key đang được xử lý bởi tiến trình khác")
+		dbSpan.End()
 		return nil
 	}
 
 	existing, err := s.envRepo.FindByIdempotencyKey(ctx, key)
 	if err != nil {
+		endSpanErr(dbSpan, err)
 		return err
 	}
 	if existing != nil {
 		log.Printf("[webhook] key=%s đã có environment, bỏ qua (duplicate webhook)", key)
+		dbSpan.AddEvent("idempotency: environment đã tồn tại, bỏ qua duplicate webhook")
+		dbSpan.End()
 		return nil
 	}
 
 	active, err := s.envRepo.CountActiveByRepo(ctx, pr.Repo)
 	if err != nil {
+		endSpanErr(dbSpan, err)
 		return err
 	}
 	if s.quota.IsExceeded(active) {
+		endSpanErr(dbSpan, ErrQuotaExceeded)
 		return ErrQuotaExceeded
 	}
 
 	if err := s.prRepo.Save(ctx, pr); err != nil {
+		endSpanErr(dbSpan, err)
 		return err
 	}
 
@@ -99,16 +135,29 @@ func (s *WebhookService) HandlePullRequestEvent(ctx context.Context, pr *domain.
 		TTL:            s.defaultTTL,
 	}
 	if err := s.envRepo.Save(ctx, env); err != nil {
+		endSpanErr(dbSpan, err)
 		return err
 	}
+	dbSpan.End()
+
+	// ---- Span 3: provisioning Docker (sống trong goroutine riêng) ----
+	// context.WithoutCancel: lấy lại toàn bộ value của parentCtx (trong đó
+	// có trace ID) nhưng BỎ tín hiệu hủy. Cần thiết vì HTTP handler sắp
+	// return 202 và context của request bị cancel ngay sau đó, trong khi
+	// provisioning còn chạy tiếp vài chục giây. Nếu ở đây dùng
+	// context.Background() thì span provisioning sẽ mất liên kết với trace
+	// gốc — nhìn trên Jaeger nó thành một trace rời, không biết thuộc
+	// webhook nào.
+	provisionCtx := context.WithoutCancel(parentCtx)
+	provisionCtx, dockerSpan := tracer.Start(provisionCtx, "webhook.provision_docker")
+	dockerSpan.SetAttributes(attribute.String("idempotency.key", key))
 
 	// Provisioning chạy trong goroutine riêng — HTTP handler trả về
-	// 202 Accepted ngay lập tức, không chờ Docker dựng xong (có thể mất
-	// vài chục giây). Kết quả được truyền về qua channel để cập nhật DB
-	// và comment vào PR khi hoàn tất.
+	// 202 Accepted ngay lập tức, không chờ Docker dựng xong. Kết quả được
+	// truyền về qua channel để cập nhật DB và comment vào PR khi hoàn tất.
 	resultCh := make(chan provisionOutcome, 1)
-	go s.provisionAsync(context.Background(), req(pr, env), resultCh)
-	go s.awaitProvisionResult(pr, env, resultCh)
+	go s.provisionAsync(provisionCtx, req(pr, env), resultCh)
+	go s.awaitProvisionResult(provisionCtx, dockerSpan, pr, env, resultCh)
 
 	return nil
 }
@@ -131,11 +180,16 @@ func (s *WebhookService) provisionAsync(ctx context.Context, req ProvisionReques
 	out <- provisionOutcome{result: result, err: err}
 }
 
-func (s *WebhookService) awaitProvisionResult(pr *domain.PullRequest, env *domain.PreviewEnvironment, resultCh <-chan provisionOutcome) {
-	ctx := context.Background()
+func (s *WebhookService) awaitProvisionResult(ctx context.Context, span trace.Span, pr *domain.PullRequest, env *domain.PreviewEnvironment, resultCh <-chan provisionOutcome) {
+	// span chính là dockerSpan mở ở HandlePullRequestEvent. Đóng nó ở đây
+	// — trong goroutine — vì đây mới là lúc bước provisioning thật sự
+	// kết thúc, chứ không phải lúc HTTP handler return.
+	defer span.End()
 	outcome := <-resultCh
 
 	if outcome.err != nil {
+		span.RecordError(outcome.err)
+		span.SetStatus(codes.Error, outcome.err.Error())
 		log.Printf("[webhook] provisioning thất bại cho key=%s: %v", env.IdempotencyKey, outcome.err)
 		env.Status = domain.EnvFailed
 		_ = s.envRepo.Save(ctx, env)
@@ -143,6 +197,7 @@ func (s *WebhookService) awaitProvisionResult(pr *domain.PullRequest, env *domai
 		return
 	}
 
+	span.SetAttributes(attribute.String("preview.url", outcome.result.URL))
 	env.Status = domain.EnvRunning
 	env.URL = outcome.result.URL
 	env.ContainerID = outcome.result.ContainerID

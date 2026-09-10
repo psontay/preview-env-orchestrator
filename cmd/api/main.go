@@ -14,6 +14,12 @@ import (
 	"os"
 	"time"
 
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
+
 	"preview-env-orchestrator/internal/api/handlers"
 	"preview-env-orchestrator/internal/application"
 	"preview-env-orchestrator/internal/domain"
@@ -24,6 +30,16 @@ import (
 )
 
 func main() {
+	// ---- OpenTelemetry: khởi tạo TracerProvider trước mọi thứ khác ----
+	// Nếu collector chưa chạy, exporter vẫn tạo được (nó kết nối lười) —
+	// span sẽ được buffer và thử gửi lại, nên service không bị chặn.
+	shutdownTracing, err := setupTracing(context.Background())
+	if err != nil {
+		log.Printf("otel: không khởi tạo được tracing (%v) — chạy tiếp không có trace", err)
+	} else {
+		defer func() { _ = shutdownTracing(context.Background()) }()
+	}
+
 	// ---- Wiring (Composition Root) ----
 	// Đây là NƠI DUY NHẤT trong toàn bộ codebase biết về các implementation
 	// cụ thể. Domain và Application layer chỉ biết tới interface.
@@ -65,6 +81,41 @@ func main() {
 	if err := http.ListenAndServe(addr, mux); err != nil {
 		log.Fatalf("server lỗi: %v", err)
 	}
+}
+
+// setupTracing khởi tạo OpenTelemetry TracerProvider và export span qua
+// OTLP/gRPC tới một collector (Jaeger all-in-one khi chạy docker-compose,
+// hoặc OpenTelemetry Collector khi lên production).
+//
+// Endpoint đọc từ biến môi trường OTEL_EXPORTER_OTLP_ENDPOINT, mặc định
+// "localhost:4317" (cổng OTLP/gRPC chuẩn). Hàm trả về callback shutdown
+// để flush nốt các span còn nằm trong batch buffer trước khi tiến trình
+// thoát.
+func setupTracing(ctx context.Context) (func(context.Context) error, error) {
+	endpoint := getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "localhost:4317")
+
+	exporter, err := otlptracegrpc.New(ctx,
+		otlptracegrpc.WithEndpoint(endpoint),
+		otlptracegrpc.WithInsecure(), // dev: không TLS giữa app và collector
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	tp := sdktrace.NewTracerProvider(
+		// WithBatcher: gom span lại thành lô rồi gửi nền, không chặn
+		// đường xử lý request.
+		sdktrace.WithBatcher(exporter),
+		sdktrace.WithResource(resource.NewWithAttributes(
+			semconv.SchemaURL,
+			semconv.ServiceName("preview-env-orchestrator"),
+		)),
+	)
+	// SetTracerProvider đăng ký tp làm provider toàn cục — otel.Tracer(...)
+	// gọi ở các package khác sẽ lấy đúng provider này.
+	otel.SetTracerProvider(tp)
+	log.Printf("otel: tracing bật, export OTLP/gRPC -> %s", endpoint)
+	return tp.Shutdown, nil
 }
 
 func getenv(key, def string) string {
