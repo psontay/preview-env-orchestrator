@@ -10,8 +10,8 @@
 >
 > | Prompt | Trạng thái | Ghi chú |
 > |---|---|---|
-> | 0 — Khảo sát & đối chiếu rubric | ⬜ | |
-> | 1 — Xác nhận trước thao tác phá huỷ | ⬜ | |
+> | 0 — Khảo sát & đối chiếu rubric | ✅ | Báo cáo hiện trạng, không sửa code. build+test pass. |
+> | 1 — Xác nhận trước thao tác phá huỷ | ✅ | Thêm handler cancel_deletion_handler.go + route POST /environments/{id}/cancel-deletion trong main.go; WebhookService/CleanupService nhúng link hủy (urls.go, baseURL qua PUBLIC_BASE_URL); test cancel_deletion_handler_test.go (7 case, gồm luồng mark→cancel→RUNNING→sweep không destroy). Không đụng domain. build+test pass. |
 > | 2 — Tích hợp PostgreSQL thật | ⬜ | |
 > | 3 — Tích hợp Docker Engine SDK thật | ⬜ | |
 > | 4 — Tích hợp GitHub API thật + bảo mật webhook | ⬜ | |

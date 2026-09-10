@@ -25,6 +25,9 @@ type WebhookService struct {
 	notifier   GitHubNotifier
 	quota      domain.Quota
 	defaultTTL domain.TTL
+	// baseURL là địa chỉ công khai của chính service này, dùng để dựng
+	// link "Hủy lệnh xoá" gửi kèm comment PR.
+	baseURL string
 }
 
 func NewWebhookService(
@@ -34,6 +37,7 @@ func NewWebhookService(
 	notifier GitHubNotifier,
 	quota domain.Quota,
 	defaultTTL domain.TTL,
+	baseURL string,
 ) *WebhookService {
 	return &WebhookService{
 		prRepo:     prRepo,
@@ -42,6 +46,7 @@ func NewWebhookService(
 		notifier:   notifier,
 		quota:      quota,
 		defaultTTL: defaultTTL,
+		baseURL:    baseURL,
 	}
 }
 
@@ -143,5 +148,7 @@ func (s *WebhookService) awaitProvisionResult(pr *domain.PullRequest, env *domai
 	env.ContainerID = outcome.result.ContainerID
 	_ = s.envRepo.Save(ctx, env)
 	_ = s.notifier.CommentOnPR(ctx, pr.Repo, pr.Number,
-		"✅ Môi trường preview của bạn đã sẵn sàng tại: "+outcome.result.URL)
+		"✅ Môi trường preview của bạn đã sẵn sàng tại: "+outcome.result.URL+
+			"\n\nMôi trường sẽ tự động bị xoá khi hết TTL. Nếu muốn giữ lại, "+
+			"hủy lệnh xoá tại: "+cancelDeletionURL(s.baseURL, env))
 }

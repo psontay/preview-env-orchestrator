@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"time"
 
@@ -17,12 +18,28 @@ const gracePeriod = 10 * time.Minute
 // phút) bởi một ticker trong main.go hoặc một cronjob bên ngoài.
 type CleanupService struct {
 	envRepo  domain.EnvironmentRepository
+	prRepo   domain.PullRequestRepository
 	docker   DockerOrchestrationService
 	notifier GitHubNotifier
+	// baseURL dùng để dựng link "Hủy lệnh xoá" gửi vào comment PR khi một
+	// environment vừa bị đánh dấu MARK_FOR_DELETION.
+	baseURL string
 }
 
-func NewCleanupService(envRepo domain.EnvironmentRepository, docker DockerOrchestrationService, notifier GitHubNotifier) *CleanupService {
-	return &CleanupService{envRepo: envRepo, docker: docker, notifier: notifier}
+func NewCleanupService(
+	envRepo domain.EnvironmentRepository,
+	prRepo domain.PullRequestRepository,
+	docker DockerOrchestrationService,
+	notifier GitHubNotifier,
+	baseURL string,
+) *CleanupService {
+	return &CleanupService{
+		envRepo:  envRepo,
+		prRepo:   prRepo,
+		docker:   docker,
+		notifier: notifier,
+		baseURL:  baseURL,
+	}
 }
 
 // Run thực hiện một lượt quét: (1) đánh dấu các env đã hết TTL, (2) huỷ
@@ -46,7 +63,23 @@ func (s *CleanupService) markExpired(ctx context.Context, now time.Time) {
 			continue
 		}
 		log.Printf("[cleanup] env=%s hết TTL, đã đánh dấu MARK_FOR_DELETION (sẽ xoá thật sau %s)", env.ID, gracePeriod)
+		s.notifyMarkedForDeletion(ctx, env)
 	}
+}
+
+// notifyMarkedForDeletion gửi comment vào PR báo environment sắp bị xoá,
+// kèm link tới endpoint hủy lệnh xoá. Không tìm được PR tương ứng thì bỏ qua
+// (comment là "best effort", không được làm hỏng lượt quét).
+func (s *CleanupService) notifyMarkedForDeletion(ctx context.Context, env *domain.PreviewEnvironment) {
+	pr, err := s.prRepo.FindByIdempotencyKey(ctx, env.IdempotencyKey)
+	if err != nil || pr == nil {
+		return
+	}
+	msg := fmt.Sprintf(
+		"⚠️ Môi trường preview đã hết TTL và sẽ bị xoá sau %s.\n"+
+			"Nếu muốn giữ lại (ví dụ PR vừa có commit mới), hủy lệnh xoá tại: %s",
+		gracePeriod, cancelDeletionURL(s.baseURL, env))
+	_ = s.notifier.CommentOnPR(ctx, pr.Repo, pr.Number, msg)
 }
 
 func (s *CleanupService) destroyReady(ctx context.Context, now time.Time) {

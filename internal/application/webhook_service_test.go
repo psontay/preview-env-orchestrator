@@ -19,7 +19,7 @@ func TestHandlePullRequestEvent_IdempotentOnDuplicateWebhook(t *testing.T) {
 	quota := domain.Quota{MaxEnvironments: 5}
 	ttl := domain.TTL{Duration: time.Hour}
 
-	svc := application.NewWebhookService(prRepo, envRepo, dockerSvc, notifier, quota, ttl)
+	svc := application.NewWebhookService(prRepo, envRepo, dockerSvc, notifier, quota, ttl, "http://localhost:8080")
 
 	pr := &domain.PullRequest{ID: "PR_1", Repo: "org/app", Number: 42, Author: "alice", CommitHash: "abc123"}
 
@@ -54,7 +54,7 @@ func TestHandlePullRequestEvent_QuotaExceeded(t *testing.T) {
 	quota := domain.Quota{MaxEnvironments: 1}
 	ttl := domain.TTL{Duration: time.Hour}
 
-	svc := application.NewWebhookService(prRepo, envRepo, dockerSvc, notifier, quota, ttl)
+	svc := application.NewWebhookService(prRepo, envRepo, dockerSvc, notifier, quota, ttl, "http://localhost:8080")
 
 	first := &domain.PullRequest{ID: "PR_1", Repo: "org/app", Number: 1, CommitHash: "sha1"}
 	second := &domain.PullRequest{ID: "PR_2", Repo: "org/app", Number: 2, CommitHash: "sha2"}
@@ -72,10 +72,11 @@ func TestHandlePullRequestEvent_QuotaExceeded(t *testing.T) {
 
 func TestCleanupService_MarksExpiredThenDestroysAfterGracePeriod(t *testing.T) {
 	envRepo := memory.NewEnvironmentRepository()
+	prRepo := memory.NewPullRequestRepository()
 	dockerSvc := dockerinfra.NewMockService()
 	notifier := memory.NewGitHubNotifier()
 
-	cleanup := application.NewCleanupService(envRepo, dockerSvc, notifier)
+	cleanup := application.NewCleanupService(envRepo, prRepo, dockerSvc, notifier, "http://localhost:8080")
 
 	// Tạo thẳng 1 environment đã "hết hạn từ lâu" để kiểm tra luồng TTL.
 	expiredEnv := &domain.PreviewEnvironment{
