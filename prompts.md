@@ -16,6 +16,7 @@
 > | 3 — Tích hợp Docker Engine SDK thật | ⬜ | |
 > | 4 — Tích hợp GitHub API thật + bảo mật webhook | ⬜ | |
 > | 5 — Tích hợp OpenTelemetry thật | ⬜ | |
+> | 5b — Giải thích lại OpenTelemetry cho người mới học | ⬜ | |
 > | 6 — Đóng gói triển khai (Dockerfile, compose, Makefile) | ⬜ | |
 > | 7 — Chuẩn hoá dự án mã nguồn mở | ⬜ | |
 > | 8 — CI/CD bằng GitHub Actions | ⬜ | |
@@ -109,6 +110,35 @@
 
 ---
 
+## Prompt 5b — Giải thích lại OpenTelemetry cho người mới học
+
+> Chạy prompt này NGAY SAU Prompt 5, khi code OTel còn "nóng" — mục đích
+> không phải thêm tính năng, mà để người học (chưa từng dùng OpenTelemetry)
+> hiểu được chính đoạn code vừa được tạo, chuẩn bị cho buổi bảo vệ/vấn đáp.
+
+> "Tôi chưa học OpenTelemetry trước đây. Hãy viết file
+> `docs/OPENTELEMETRY_EXPLAINED.md` giải thích LẠI đúng những gì vừa được
+> code ở Prompt 5 — không phải lý thuyết OTel chung chung, mà bám sát 100%
+> vào code thật trong repo này. Yêu cầu nội dung:
+>
+> 1. Giải thích 4 khái niệm cốt lõi (Tracer, Span, Exporter, Collector)
+>    bằng ví dụ cụ thể LẤY TỪ CHÍNH REPO — ví dụ span nào tương ứng dòng
+>    code nào trong `webhook_service.go`, không dùng ví dụ trừu tượng.
+> 2. Vẽ lại bằng lời (hoặc Mermaid sequence diagram) đúng 3 span đã tạo:
+>    nhận+parse webhook → ghi DB → gọi Docker provisioning — chỉ rõ span
+>    nào là con của span nào, span nào tồn tại trong goroutine riêng.
+> 3. Giải thích TẠI SAO context mang trace ID phải được truyền theo đúng
+>    goroutine provisioning bất đồng bộ, và điều gì sẽ xảy ra (trace bị
+>    'đứt') nếu vô tình tạo `context.Background()` mới ở đó — trỏ thẳng
+>    tới dòng code cụ thể minh hoạ lỗi này nếu giả lập.
+> 4. Một đoạn ngắn 'Câu hỏi vấn đáp có thể gặp' — liệt kê 5 câu hỏi
+>    giảng viên có thể hỏi về phần OTel trong đồ án này kèm câu trả lời
+>    ngắn gọn, để tôi ôn trước khi bảo vệ.
+> 5. Viết bằng tiếng Việt, giọng văn như giải thích cho sinh viên mới học,
+>    tránh thuật ngữ không giải thích ngay khi dùng lần đầu."
+
+---
+
 ## Prompt 6 — Đóng gói triển khai (Dockerfile, compose, Makefile, config)
 
 > "Tạo: (1) `Dockerfile` multi-stage build cho chính ứng dụng Go (build
@@ -166,6 +196,11 @@
 Nếu không kịp làm hết, ưu tiên theo đúng trọng số "điểm nhấn cập nhật" của
 đề bài: **Prompt 1 (destructive safety) → Prompt 9 (test domain) → Prompt 2
 (Postgres, vì idempotency thật sự chỉ đáng tin khi có DB) → Prompt 4
-(GitHub API + bảo mật webhook) → Prompt 3 (Docker SDK) → Prompt 5
+(GitHub API + bảo mật webhook) → Prompt 3 (Docker SDK) → Prompt 5 + 5b
 (OpenTelemetry)**. Prompt 6, 7, 8 là phần "mã nguồn mở" cộng điểm hình
 thức, làm sau cùng nếu còn thời gian.
+
+**Không bỏ Prompt 5b dù có thiếu thời gian** — nếu OpenTelemetry là mảng
+bạn chưa từng học, đây là bước rẻ nhất (chỉ sinh tài liệu, không thêm
+rủi ro kỹ thuật) để tránh bị hỏi vấn đáp mà không trả lời được về chính
+phần code trong bài của mình.
