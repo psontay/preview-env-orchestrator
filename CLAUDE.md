@@ -95,8 +95,11 @@ quy tắc dưới đây LUÔN có hiệu lực dù người dùng có gõ `/clea
 hay không — không cần người dùng nhắc lại.
 
 1. **Nguồn việc duy nhất là `prompts.md`.** Nó chứa bộ prompt đã sắp theo
-   thứ tự ưu tiên (Prompt 0 → 9), tương ứng 4 giai đoạn gốc + phần bổ
-   sung cho tiêu chí "mã nguồn mở".
+   thứ tự ưu tiên (Prompt 0 → 9, có thêm Prompt 5b), tương ứng 4 giai đoạn
+   gốc + phần bổ sung cho tiêu chí "mã nguồn mở". **Prompt 5b là bắt buộc,
+   không phải tuỳ chọn** — người dùng chưa học OpenTelemetry trước khi làm
+   đồ án này, nên sau khi hoàn thành Prompt 5 PHẢI tự động chạy tiếp Prompt
+   5b (không cần người dùng nhắc) trước khi báo cáo là "xong phần OTel".
 2. **Trước khi làm bất cứ việc gì, mở `prompts.md` và tìm dòng
    `> TRẠNG THÁI:`** ở đầu file — đó là con trỏ tiến độ. Nó ghi prompt nào
    đã xong (✅), đang làm dở (🔶), hay chưa bắt đầu (⬜). Luôn tiếp tục từ

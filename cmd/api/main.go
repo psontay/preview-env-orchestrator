@@ -27,7 +27,7 @@ func main() {
 	// Đây là NƠI DUY NHẤT trong toàn bộ codebase biết về các implementation
 	// cụ thể. Domain và Application layer chỉ biết tới interface.
 	prRepo, envRepo := newRepositories()
-	dockerSvc := dockerinfra.NewMockService()
+	dockerSvc := newDockerService()
 	notifier := memory.NewGitHubNotifier()
 
 	quota := domain.Quota{MaxEnvironments: 5}
@@ -89,6 +89,29 @@ func newRepositories() (domain.PullRequestRepository, domain.EnvironmentReposito
 	default:
 		log.Fatalf("STORAGE_DRIVER không hợp lệ: %q (chấp nhận: memory | postgres)", driver)
 		return nil, nil
+	}
+}
+
+// newDockerService chọn adapter điều phối container theo biến môi trường
+// DOCKER_DRIVER:
+//
+//	mock (mặc định) — MockService, giả lập, không cần Docker daemon
+//	real            — RealService, gọi Docker Engine SDK thật
+func newDockerService() application.DockerOrchestrationService {
+	switch driver := getenv("DOCKER_DRIVER", "mock"); driver {
+	case "real":
+		svc, err := dockerinfra.NewRealService()
+		if err != nil {
+			log.Fatalf("docker=real: %v", err)
+		}
+		log.Printf("docker: real (Docker Engine SDK)")
+		return svc
+	case "mock":
+		log.Printf("docker: mock (giả lập)")
+		return dockerinfra.NewMockService()
+	default:
+		log.Fatalf("DOCKER_DRIVER không hợp lệ: %q (chấp nhận: mock | real)", driver)
+		return nil
 	}
 }
 
