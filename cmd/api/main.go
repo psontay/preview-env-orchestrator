@@ -1,10 +1,11 @@
 // Command api khởi động HTTP server nhận webhook GitHub và chạy
 // background worker dọn dẹp environment hết hạn.
 //
-// Bản này dùng adapter in-memory + mock Docker để chạy được ngay tại
-// chỗ (go run ./cmd/api) không cần Postgres/Docker daemon thật — phù hợp
-// để demo luồng nghiệp vụ. Khi lên production, thay các adapter trong
-// phần "Wiring" bên dưới bằng bản Postgres/Docker SDK thật (xem thư mục docs/).
+// Adapter lưu trữ/Docker/GitHub được chọn qua biến môi trường
+// (STORAGE_DRIVER, DOCKER_DRIVER, GITHUB_DRIVER — xem newRepositories,
+// newDockerService, newGitHubNotifier bên dưới). Mặc định dùng bản
+// in-memory + mock để chạy ngay tại chỗ (go run ./cmd/api) không cần
+// Postgres/Docker daemon thật; đặt =postgres/real để dùng adapter thật.
 package main
 
 import (
