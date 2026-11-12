@@ -1,6 +1,7 @@
 # Biến môi trường thật — KHÔNG commit (chỉ commit .env.example)
 .env
 .env.*
+.evn
 !.env.example
 
 # Binary / artefact build ra
@@ -17,3 +18,14 @@ coverage.html
 # IDE
 .idea/
 .vscode/
+
+# Tài liệu / file nội bộ, không đưa lên GitHub
+deliverables/
+docs/
+AGENTS.md
+CLAUDE.md
+LEARNING-DESIGN.md
+prompts.md
+CONTRIBUTING.md
+LICENSE
+.evn
