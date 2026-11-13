@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="779" viewBox="0 0 1100 779">
+<defs><marker id="arrow" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#222"/></marker><marker id="open" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0,0 L9,5 L0,10" fill="none" stroke="#222" stroke-width="1.4"/></marker><marker id="triangle" markerWidth="12" markerHeight="12" refX="11" refY="6" orient="auto"><path d="M0,0 L11,6 L0,12 Z" fill="white" stroke="#222"/></marker><marker id="diamond" markerWidth="13" markerHeight="10" refX="0" refY="5" orient="auto"><path d="M0,5 L6,0 L12,5 L6,10 Z" fill="#222"/></marker></defs>
+<rect width="1100" height="779" fill="white"/>
+<rect x="3.0" y="20" width="154" height="67" rx="0" fill="#f7f7f7" stroke="#333" stroke-width="1.7"/>
+<text x="80.0" y="46" text-anchor="middle" font-family="Liberation Serif,serif" font-size="22" fill="#111" font-weight="bold">GitHub</text>
+<path d="M80.0,87 L80.0,754" stroke="#333" stroke-width="1.7" fill="none" stroke-dasharray="7,5"/>
+<rect x="238.0" y="20" width="154" height="67" rx="0" fill="#f7f7f7" stroke="#333" stroke-width="1.7"/>
+<text x="315.0" y="46" text-anchor="middle" font-family="Liberation Serif,serif" font-size="22" fill="#111" font-weight="bold">HTTP</text>
+<path d="M315.0,87 L315.0,754" stroke="#333" stroke-width="1.7" fill="none" stroke-dasharray="7,5"/>
+<rect x="473.0" y="20" width="154" height="67" rx="0" fill="#f7f7f7" stroke="#333" stroke-width="1.7"/>
+<text x="550.0" y="46" text-anchor="middle" font-family="Liberation Serif,serif" font-size="22" fill="#111" font-weight="bold">WebhookService</text>
+<path d="M550.0,87 L550.0,754" stroke="#333" stroke-width="1.7" fill="none" stroke-dasharray="7,5"/>
+<rect x="708.0" y="20" width="154" height="67" rx="0" fill="#f7f7f7" stroke="#333" stroke-width="1.7"/>
+<text x="785.0" y="46" text-anchor="middle" font-family="Liberation Serif,serif" font-size="22" fill="#111" font-weight="bold">Repository</text>
+<path d="M785.0,87 L785.0,754" stroke="#333" stroke-width="1.7" fill="none" stroke-dasharray="7,5"/>
+<rect x="943.0" y="20" width="154" height="67" rx="0" fill="#f7f7f7" stroke="#333" stroke-width="1.7"/>
+<text x="1020.0" y="46" text-anchor="middle" font-family="Liberation Serif,serif" font-size="22" fill="#111" font-weight="bold">Job Docker</text>
+<path d="M1020.0,87 L1020.0,754" stroke="#333" stroke-width="1.7" fill="none" stroke-dasharray="7,5"/>
+<path d="M80.0,150 L315.0,150" stroke="#333" stroke-width="1.7" fill="none" marker-end="url(#arrow)"/>
+<text x="197.5" y="112" text-anchor="middle" font-family="Liberation Serif,serif" font-size="21" fill="#111" font-weight="normal">POST webhook +</text>
+<text x="197.5" y="138" text-anchor="middle" font-family="Liberation Serif,serif" font-size="21" fill="#111" font-weight="normal">signature</text>
+<path d="M315.0,216 L380.0,216 L380.0,224 L315.0,224" fill="none" stroke="#333" stroke-width="1.7" marker-end="url(#arrow)"/>
+<text x="327.0" y="207" text-anchor="start" font-family="Liberation Serif,serif" font-size="20" fill="#111" font-weight="normal">HMAC + validation</text>
+<path d="M315.0,282 L550.0,282" stroke="#333" stroke-width="1.7" fill="none" marker-end="url(#arrow)"/>
+<text x="432.5" y="244" text-anchor="middle" font-family="Liberation Serif,serif" font-size="21" fill="#111" font-weight="normal">HandlePullRequestEvent(ctx,</text>
+<text x="432.5" y="270" text-anchor="middle" font-family="Liberation Serif,serif" font-size="21" fill="#111" font-weight="normal">pr)</text>
+<path d="M550.0,348 L785.0,348" stroke="#333" stroke-width="1.7" fill="none" marker-end="url(#arrow)"/>
+<text x="667.5" y="310" text-anchor="middle" font-family="Liberation Serif,serif" font-size="21" fill="#111" font-weight="normal">Save PR; Reserve(env,</text>
+<text x="667.5" y="336" text-anchor="middle" font-family="Liberation Serif,serif" font-size="21" fill="#111" font-weight="normal">quota)</text>
+<path d="M785.0,414 L550.0,414" stroke="#333" stroke-width="1.7" fill="none" stroke-dasharray="7,5" marker-end="url(#open)"/>
+<text x="667.5" y="376" text-anchor="middle" font-family="Liberation Serif,serif" font-size="21" fill="#111" font-weight="normal">acquired / duplicate</text>
+<text x="667.5" y="402" text-anchor="middle" font-family="Liberation Serif,serif" font-size="21" fill="#111" font-weight="normal">/ error</text>
+<path d="M550.0,480 L1020.0,480" stroke="#333" stroke-width="1.7" fill="none" marker-end="url(#open)"/>
+<text x="785.0" y="468" text-anchor="middle" font-family="Liberation Serif,serif" font-size="21" fill="#111" font-weight="normal">khởi chạy bất đồng bộ</text>
+<path d="M550.0,546 L315.0,546" stroke="#333" stroke-width="1.7" fill="none" stroke-dasharray="7,5" marker-end="url(#open)"/>
+<text x="432.5" y="534" text-anchor="middle" font-family="Liberation Serif,serif" font-size="21" fill="#111" font-weight="normal">return nil</text>
+<path d="M315.0,612 L80.0,612" stroke="#333" stroke-width="1.7" fill="none" stroke-dasharray="7,5" marker-end="url(#open)"/>
+<text x="197.5" y="600" text-anchor="middle" font-family="Liberation Serif,serif" font-size="21" fill="#111" font-weight="normal">202 Accepted</text>
+<path d="M1020.0,678 L785.0,678" stroke="#333" stroke-width="1.7" fill="none" marker-end="url(#arrow)"/>
+<text x="902.5" y="640" text-anchor="middle" font-family="Liberation Serif,serif" font-size="21" fill="#111" font-weight="normal">Save RUNNING sau</text>
+<text x="902.5" y="666" text-anchor="middle" font-family="Liberation Serif,serif" font-size="21" fill="#111" font-weight="normal">readiness</text>
+</svg>

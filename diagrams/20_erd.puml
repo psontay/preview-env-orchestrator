@@ -1,0 +1,36 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam defaultFontName Liberation Serif
+skinparam defaultFontSize 15
+hide empty members
+class "pull_requests" as C0 {
+  id PK
+  repo, number, author
+  commit_hash, status
+  created_at
+  idempotency_key GENERATED UNIQUE
+}
+class "preview_environments" as C1 {
+  id PK; pull_request_id FK
+  idempotency_key UNIQUE
+  repo, commit_sha, status
+  url, container_id, resource_group
+  created_at, ttl_seconds, expires_at
+  marked_for_deletion_at
+  deletion_notified_at
+  deletion_cancel_count CHECK 0..1
+  last_error; destruction_notice_pending
+}
+class "idempotency_keys" as C2 {
+  idempotency_key PK
+  created_at
+}
+class "schema_migrations" as C3 {
+  name PK
+  applied_at
+}
+C0 --> C1: 1 → 0..*; FK thật
+C2 --> C1: cùng key; không có FK
+@enduml

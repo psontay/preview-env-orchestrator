@@ -1,0 +1,20 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam defaultFontName Liberation Serif
+skinparam defaultFontSize 15
+hide empty members
+component "Máy Linux / trình duyệt\n18080 orchestrator; port app động" as C0
+component "Quick Tunnel\nHTTPS → loopback:18080" as C1
+component "peo-app\nGo nonroot + socket group" as C2
+component "peo-postgres / Jaeger\nCompose network" as C3
+component "Docker socket\n/var/run/docker.sock" as C4
+component "Mỗi preview\nnetwork riêng; app/db/redis/rabbit/mail" as C5
+C1 --> C2: webhook / cancel
+C0 --> C2: HTTP 18080
+C2 --> C3: SQL / OTLP
+C2 --> C4: Engine SDK
+C4 --> C5: tạo / xoá
+C0 --> C5: HTTP port động
+@enduml

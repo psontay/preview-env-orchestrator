@@ -1,0 +1,21 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam defaultFontName Liberation Serif
+skinparam defaultFontSize 15
+hide empty members
+component "cmd/api\nConfig và composition root" as C0
+component "HTTP handlers\nGiao thức và validation" as C1
+component "Application\nUse case + port bên ngoài" as C2
+component "Domain\nEntity, Value Object, repo port" as C3
+component "Persistence adapters\nPostgres / Memory" as C4
+component "External adapters\nDocker / GitHub" as C5
+C0 --> C1: wiring
+C0 --> C4: khởi tạo
+C0 --> C5: khởi tạo
+C1 --> C2: gọi use case
+C2 --> C3: rule và port
+C4 --> C3: implements
+C5 --> C2: implements
+@enduml

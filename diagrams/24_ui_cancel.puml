@@ -1,0 +1,14 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam defaultFontName Liberation Serif
+skinparam defaultFontSize 15
+hide empty members
+title TÁI DỰNG TỪ SOURCE — KHÔNG PHẢI ẢNH RUNTIME
+rectangle "Huỷ lệnh xoá preview" {
+rectangle "Chỉ dùng một lần, trong grace period." as L0
+rectangle "Sau xác nhận, TTL mới là 2 phút." as L1
+rectangle "Hết TTL vẫn đánh dấu và chờ grace trước khi xoá." as L2
+}
+@enduml

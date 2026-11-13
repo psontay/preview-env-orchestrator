@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="590" viewBox="0 0 1000 590">
+<defs><marker id="arrow" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#222"/></marker><marker id="open" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0,0 L9,5 L0,10" fill="none" stroke="#222" stroke-width="1.4"/></marker><marker id="triangle" markerWidth="12" markerHeight="12" refX="11" refY="6" orient="auto"><path d="M0,0 L11,6 L0,12 Z" fill="white" stroke="#222"/></marker><marker id="diamond" markerWidth="13" markerHeight="10" refX="0" refY="5" orient="auto"><path d="M0,5 L6,0 L12,5 L6,10 Z" fill="#222"/></marker></defs>
+<rect width="1000" height="590" fill="white"/>
+<rect x="25" y="22" width="950" height="540" rx="0" fill="white" stroke="#333" stroke-width="1.7"/>
+<rect x="25" y="22" width="950" height="50" rx="0" fill="#f5f5f5" stroke="#333" stroke-width="1.7"/>
+<text x="500" y="54" text-anchor="middle" font-family="Liberation Serif,serif" font-size="19" fill="#111" font-weight="bold">ĐẶC TẢ RESPONSE — DỮ LIỆU MINH HOẠ CẤU TRÚC</text>
+<text x="70" y="126" text-anchor="start" font-family="Liberation Serif,serif" font-size="31" fill="#111" font-weight="bold">Trạng thái preview</text>
+<text x="70" y="180" text-anchor="start" font-family="Liberation Serif,serif" font-size="25" fill="#111" font-weight="normal">status • commit_sha • url • resource_group</text>
+<text x="70" y="233" text-anchor="start" font-family="Liberation Serif,serif" font-size="25" fill="#111" font-weight="normal">expires_at • marked_for_deletion_at</text>
+<text x="70" y="286" text-anchor="start" font-family="Liberation Serif,serif" font-size="25" fill="#111" font-weight="normal">deletion_notified_at • deletion_cancel_count</text>
+<text x="70" y="339" text-anchor="start" font-family="Liberation Serif,serif" font-size="25" fill="#111" font-weight="normal">destruction_notice_pending • last_error</text>
+<text x="70" y="392" text-anchor="start" font-family="Liberation Serif,serif" font-size="25" fill="#111" font-weight="normal">RUNNING: có admin credential sau xác thực</text>
+</svg>

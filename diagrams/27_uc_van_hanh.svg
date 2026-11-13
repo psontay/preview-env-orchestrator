@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="390" viewBox="0 0 1100 390">
+<defs><marker id="arrow" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#222"/></marker><marker id="open" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0,0 L9,5 L0,10" fill="none" stroke="#222" stroke-width="1.4"/></marker><marker id="triangle" markerWidth="12" markerHeight="12" refX="11" refY="6" orient="auto"><path d="M0,0 L11,6 L0,12 Z" fill="white" stroke="#222"/></marker><marker id="diamond" markerWidth="13" markerHeight="10" refX="0" refY="5" orient="auto"><path d="M0,5 L6,0 L12,5 L6,10 Z" fill="#222"/></marker></defs>
+<rect width="1100" height="390" fill="white"/>
+<rect x="220" y="25" width="690" height="325" rx="0" fill="white" stroke="#333" stroke-width="1.7"/>
+<text x="565" y="60" text-anchor="middle" font-family="Liberation Serif,serif" font-size="24" fill="#111" font-weight="bold">preview-env-orchestrator</text>
+<circle cx="100" cy="135.0" r="13" fill="white" stroke="#222" stroke-width="2"/>
+<path d="M100,148.0 L100,188.0" stroke="#333" stroke-width="1.7" fill="none"/>
+<path d="M77,165.0 L123,165.0" stroke="#333" stroke-width="1.7" fill="none"/>
+<path d="M100,188.0 L79,215.0" stroke="#333" stroke-width="1.7" fill="none"/>
+<path d="M100,188.0 L121,215.0" stroke="#333" stroke-width="1.7" fill="none"/>
+<text x="100" y="243.0" text-anchor="middle" font-family="Liberation Serif,serif" font-size="24" fill="#111" font-weight="normal">Người vận hành</text>
+<circle cx="1015" cy="70" r="13" fill="white" stroke="#222" stroke-width="2"/>
+<path d="M1015,83 L1015,123" stroke="#333" stroke-width="1.7" fill="none"/>
+<path d="M992,100 L1038,100" stroke="#333" stroke-width="1.7" fill="none"/>
+<path d="M1015,123 L994,150" stroke="#333" stroke-width="1.7" fill="none"/>
+<path d="M1015,123 L1036,150" stroke="#333" stroke-width="1.7" fill="none"/>
+<text x="1015" y="178" text-anchor="middle" font-family="Liberation Serif,serif" font-size="24" fill="#111" font-weight="normal">PostgreSQL</text>
+<circle cx="1015" cy="210" r="13" fill="white" stroke="#222" stroke-width="2"/>
+<path d="M1015,223 L1015,263" stroke="#333" stroke-width="1.7" fill="none"/>
+<path d="M992,240 L1038,240" stroke="#333" stroke-width="1.7" fill="none"/>
+<path d="M1015,263 L994,290" stroke="#333" stroke-width="1.7" fill="none"/>
+<path d="M1015,263 L1036,290" stroke="#333" stroke-width="1.7" fill="none"/>
+<text x="1015" y="318" text-anchor="middle" font-family="Liberation Serif,serif" font-size="24" fill="#111" font-weight="normal">Jaeger</text>
+<ellipse cx="395" cy="125" rx="145" ry="45" fill="white" stroke="#333" stroke-width="1.7"/>
+<text x="395" y="113" text-anchor="middle" font-family="Liberation Serif,serif" font-size="24" fill="#111" font-weight="bold">UC-06</text>
+<text x="395" y="141" text-anchor="middle" font-family="Liberation Serif,serif" font-size="24" fill="#111" font-weight="normal">Tra cứu preview</text>
+<ellipse cx="725" cy="125" rx="145" ry="45" fill="white" stroke="#333" stroke-width="1.7"/>
+<text x="725" y="113" text-anchor="middle" font-family="Liberation Serif,serif" font-size="24" fill="#111" font-weight="bold">UC-12</text>
+<text x="725" y="141" text-anchor="middle" font-family="Liberation Serif,serif" font-size="24" fill="#111" font-weight="normal">Phục hồi dang dở</text>
+<ellipse cx="395" cy="245" rx="145" ry="45" fill="white" stroke="#333" stroke-width="1.7"/>
+<text x="395" y="233" text-anchor="middle" font-family="Liberation Serif,serif" font-size="24" fill="#111" font-weight="bold">UC-13</text>
+<text x="395" y="261" text-anchor="middle" font-family="Liberation Serif,serif" font-size="24" fill="#111" font-weight="normal">Chuẩn bị cấu hình</text>
+<ellipse cx="725" cy="245" rx="145" ry="45" fill="white" stroke="#333" stroke-width="1.7"/>
+<text x="725" y="233" text-anchor="middle" font-family="Liberation Serif,serif" font-size="24" fill="#111" font-weight="bold">UC-14</text>
+<text x="725" y="261" text-anchor="middle" font-family="Liberation Serif,serif" font-size="24" fill="#111" font-weight="normal">Quan sát tiến trình</text>
+<path d="M130,165.0 L250,125" stroke="#333" stroke-width="1.7" fill="none"/>
+<path d="M130,165.0 L185,165.0 L185,71 L560,71 L560,125 L580,125" fill="none" stroke="#333" stroke-width="1.7"/>
+<path d="M130,165.0 L250,245" stroke="#333" stroke-width="1.7" fill="none"/>
+<path d="M130,165.0 L185,165.0 L185,191 L560,191 L560,245 L580,245" fill="none" stroke="#333" stroke-width="1.7"/>
+<path d="M980,100 L943,100 L943,179 L560,179 L560,125 L540,125" fill="none" stroke="#333" stroke-width="1.7"/>
+<path d="M980,100 L870,125" stroke="#333" stroke-width="1.7" fill="none"/>
+<path d="M980,240 L870,245" stroke="#333" stroke-width="1.7" fill="none"/>
+</svg>

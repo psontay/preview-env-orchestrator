@@ -1,0 +1,23 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam defaultFontName Liberation Serif
+skinparam defaultFontSize 15
+hide empty members
+participant "Job" as P0
+participant "Source GitHub" as P1
+participant "Docker SDK" as P2
+participant "Backend" as P3
+participant "DB quản lý" as P4
+P0 -> P0: chờ buildGate
+P0 -> P1: Archive(repo, SHA)
+P1 -> P0: tar đã sanitise
+P0 -> P2: ImageBuild; labels revision
+P0 -> P2: NetworkCreate + dependency
+P0 -> P2: waitHealthy
+P0 -> P2: create/start app
+P0 -> P3: GET /actuator/health
+P3 -> P0: 200; status UP
+P0 -> P4: Save RUNNING + expiry
+@enduml

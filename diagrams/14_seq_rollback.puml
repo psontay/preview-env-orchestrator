@@ -1,0 +1,20 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam defaultFontName Liberation Serif
+skinparam defaultFontSize 15
+hide empty members
+participant "Job" as P0
+participant "Docker adapter" as P1
+participant "Docker Engine" as P2
+participant "Repository" as P3
+P0 -> P1: Provision(req)
+P1 -> P2: build/create/start
+P2 -> P1: lỗi hoặc app stopped
+P1 -> P2: destroyStack trong context độc lập
+P2 -> P1: sạch hoặc còn tài nguyên
+P1 -> P0: result handle + error nếu sót
+P0 -> P0: chọn FAILED hoặc MARK
+P0 -> P3: Save LastError và handle
+@enduml

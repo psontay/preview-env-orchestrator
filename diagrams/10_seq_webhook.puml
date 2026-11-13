@@ -1,0 +1,22 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam defaultFontName Liberation Serif
+skinparam defaultFontSize 15
+hide empty members
+participant "GitHub" as P0
+participant "HTTP" as P1
+participant "WebhookService" as P2
+participant "Repository" as P3
+participant "Job Docker" as P4
+P0 -> P1: POST webhook + signature
+P1 -> P1: HMAC + validation
+P1 -> P2: HandlePullRequestEvent(ctx, pr)
+P2 -> P3: Save PR; Reserve(env, quota)
+P3 -> P2: acquired / duplicate / error
+P2 -> P4: khởi chạy bất đồng bộ
+P2 -> P1: return nil
+P1 -> P0: 202 Accepted
+P4 -> P3: Save RUNNING sau readiness
+@enduml

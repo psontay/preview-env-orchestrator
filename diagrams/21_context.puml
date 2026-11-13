@@ -1,0 +1,20 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam defaultFontName Liberation Serif
+skinparam defaultFontSize 15
+hide empty members
+component "Người dùng preview\nURL và xác nhận giữ" as C0
+component "GitHub\nPR, webhook, archive, comment" as C1
+component "Orchestrator\nMột instance Go" as C2
+component "Docker Engine\nBuild và stack preview" as C3
+component "PostgreSQL quản lý\nReservation và lifecycle" as C4
+component "Jaeger\nOTLP và trace UI" as C5
+C1 --> C2: HTTPS webhook
+C2 --> C1: REST source / comment
+C0 --> C2: HTTPS cancel
+C2 --> C3: SDK / socket
+C2 --> C4: pgx / SQL
+C2 --> C5: OTLP gRPC
+@enduml

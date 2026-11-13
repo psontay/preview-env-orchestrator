@@ -1,0 +1,21 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam defaultFontName Liberation Serif
+skinparam defaultFontSize 15
+hide empty members
+state "Chưa có lần mark" as S0
+state "Đang chờ gửi" as S1
+state "Đã ghi nhận gửi" as S2
+state "Grace hoàn tất" as S3
+state "Đã huỷ chu kỳ" as S4
+[*] --> S0
+S0 --> S1: MarkForDeletion
+S1 --> S1: lookup / gửi / lưu lỗi
+S1 --> S2: RecordDeletionNotice hợp lệ
+S2 --> S3: now > deadline
+S1 --> S4: ExtendOnce
+S2 --> S4: ExtendOnce trước hạn
+S4 --> S1: hết TTL mới
+@enduml

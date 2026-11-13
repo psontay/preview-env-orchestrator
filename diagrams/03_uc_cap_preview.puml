@@ -1,0 +1,23 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam defaultFontName Liberation Serif
+skinparam defaultFontSize 15
+hide empty members
+actor "GitHub" as A0
+actor "Docker Engine" as A1
+rectangle "preview-env-orchestrator" {
+usecase "UC-01\nTiếp nhận sự kiện PR" as U0
+usecase "UC-02\nXác thực nguồn" as U1
+usecase "UC-03\nĐặt chỗ preview" as U2
+usecase "UC-04\nDựng đúng commit" as U3
+usecase "UC-05\nCông bố khởi tạo" as U4
+}
+A0 -- U0
+A0 -- U1
+A1 -- U3
+A0 -- U4
+U0 ..> U1: <<include>>
+U0 ..> U2: <<include>>
+@enduml

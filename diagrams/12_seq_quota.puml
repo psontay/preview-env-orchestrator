@@ -1,0 +1,22 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam defaultFontName Liberation Serif
+skinparam defaultFontSize 15
+hide empty members
+participant "GitHub" as P0
+participant "Service" as P1
+participant "Repository" as P2
+participant "Docker" as P3
+P0 -> P1: delivery A lần đầu
+P1 -> P2: Reserve A
+P2 -> P1: acquired
+P1 -> P3: Provision A [async]
+P0 -> P1: delivery A lặp
+P1 -> P2: Reserve A
+P2 -> P1: false, nil → no-op
+P0 -> P1: delivery B khi quota đầy
+P1 -> P2: Reserve B
+P2 -> P1: ErrQuotaExceeded; chưa ghi key B
+@enduml

@@ -1,0 +1,21 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam defaultFontName Liberation Serif
+skinparam defaultFontSize 15
+hide empty members
+participant "Worker" as P0
+participant "PostgreSQL" as P1
+participant "Docker" as P2
+participant "GitHub" as P3
+P0 -> P1: ClaimDestruction khi qua deadline
+P1 -> P0: DESTROYING hoặc không có row
+P0 -> P2: Destroy(ResourceGroup)
+P2 -> P0: đã dọn đúng ownership
+P0 -> P1: Save DESTROYED + pending=true
+P0 -> P1: FindPendingDestructionNotices
+P0 -> P3: Comment dọn xong
+P3 -> P0: thành công
+P0 -> P1: ConfirmDestructionNotice
+@enduml

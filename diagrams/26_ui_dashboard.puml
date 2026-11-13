@@ -1,0 +1,16 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam defaultFontName Liberation Serif
+skinparam defaultFontSize 15
+hide empty members
+title ĐỀ XUẤT — CHƯA CÓ IMPLEMENTATION
+rectangle "Danh sách preview" {
+rectangle "Bộ lọc: repository | PR | commit | trạng thái" as L0
+rectangle "PR / SHA     Trạng thái     Hạn sử dụng" as L1
+rectangle "Chi tiết: URL, timeline, điều kiện giữ preview" as L2
+rectangle "Thông báo: chưa gửi / đã gửi / chờ xác nhận" as L3
+rectangle "Credential chỉ trong vùng chẩn đoán được cấp quyền" as L4
+}
+@enduml

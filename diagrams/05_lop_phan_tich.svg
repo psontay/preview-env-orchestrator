@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="780" viewBox="0 0 1100 780">
+<defs><marker id="arrow" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#222"/></marker><marker id="open" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0,0 L9,5 L0,10" fill="none" stroke="#222" stroke-width="1.4"/></marker><marker id="triangle" markerWidth="12" markerHeight="12" refX="11" refY="6" orient="auto"><path d="M0,0 L11,6 L0,12 Z" fill="white" stroke="#222"/></marker><marker id="diamond" markerWidth="13" markerHeight="10" refX="0" refY="5" orient="auto"><path d="M0,5 L6,0 L12,5 L6,10 Z" fill="#222"/></marker></defs>
+<rect width="1100" height="780" fill="white"/>
+<path d="M505,105.0 L550.0,105.0 L550.0,105.0 L595,105.0" fill="none" stroke="#333" stroke-width="1.7" marker-end="url(#open)"/>
+<text x="555.0" y="95.0" text-anchor="middle" font-family="Liberation Serif,serif" font-size="21" fill="#111" font-weight="normal">R1</text>
+<path d="M830.0,185 L830.0,275" fill="none" stroke="#333" stroke-width="1.7" marker-start="url(#diamond)" marker-end="url(#open)"/>
+<text x="835.0" y="220.0" text-anchor="middle" font-family="Liberation Serif,serif" font-size="21" fill="#111" font-weight="normal">R2</text>
+<path d="M505,355.0 L550.0,355.0 L550.0,105.0 L595,105.0" fill="none" stroke="#333" stroke-width="1.7" marker-end="url(#open)"/>
+<text x="555.0" y="220.0" text-anchor="middle" font-family="Liberation Serif,serif" font-size="21" fill="#111" font-weight="normal">R3</text>
+<path d="M595,105.0 L560.0,105.0 L560.0,605.0 L505,605.0" fill="none" stroke="#333" stroke-width="1.7" marker-end="url(#open)"/>
+<text x="555.0" y="345.0" text-anchor="middle" font-family="Liberation Serif,serif" font-size="21" fill="#111" font-weight="normal">R4</text>
+<path d="M1065,105.0 L1080,105.0 L1080,605.0 L1065,605.0" fill="none" stroke="#333" stroke-width="1.7" marker-end="url(#open)"/>
+<text x="1070.0" y="345.0" text-anchor="middle" font-family="Liberation Serif,serif" font-size="21" fill="#111" font-weight="normal">R5</text>
+<rect x="35" y="25" width="470" height="160" rx="0" fill="white" stroke="#333" stroke-width="1.7"/>
+<text x="270.0" y="58" text-anchor="middle" font-family="Liberation Serif,serif" font-size="24" fill="#111" font-weight="bold">PullRequest</text>
+<path d="M35,73 L505,73" stroke="#333" stroke-width="1.7" fill="none"/>
+<text x="49" y="103" text-anchor="start" font-family="Liberation Serif,serif" font-size="21" fill="#111" font-weight="normal">định danh PR</text>
+<text x="49" y="134" text-anchor="start" font-family="Liberation Serif,serif" font-size="21" fill="#111" font-weight="normal">repository, số PR</text>
+<text x="49" y="165" text-anchor="start" font-family="Liberation Serif,serif" font-size="21" fill="#111" font-weight="normal">phiên bản được tiếp nhận</text>
+<rect x="595" y="25" width="470" height="160" rx="0" fill="white" stroke="#333" stroke-width="1.7"/>
+<text x="830.0" y="58" text-anchor="middle" font-family="Liberation Serif,serif" font-size="24" fill="#111" font-weight="bold">PreviewEnvironment</text>
+<path d="M595,73 L1065,73" stroke="#333" stroke-width="1.7" fill="none"/>
+<text x="609" y="103" text-anchor="start" font-family="Liberation Serif,serif" font-size="21" fill="#111" font-weight="normal">định danh theo commit</text>
+<text x="609" y="134" text-anchor="start" font-family="Liberation Serif,serif" font-size="21" fill="#111" font-weight="normal">trạng thái, URL</text>
+<text x="609" y="165" text-anchor="start" font-family="Liberation Serif,serif" font-size="21" fill="#111" font-weight="normal">hạn sống và quyền gia hạn</text>
+<rect x="35" y="275" width="470" height="160" rx="0" fill="white" stroke="#333" stroke-width="1.7"/>
+<text x="270.0" y="308" text-anchor="middle" font-family="Liberation Serif,serif" font-size="24" fill="#111" font-weight="bold">Quota</text>
+<path d="M35,323 L505,323" stroke="#333" stroke-width="1.7" fill="none"/>
+<text x="49" y="353" text-anchor="start" font-family="Liberation Serif,serif" font-size="21" fill="#111" font-weight="normal">số môi trường tối đa</text>
+<text x="49" y="384" text-anchor="start" font-family="Liberation Serif,serif" font-size="21" fill="#111" font-weight="normal">đánh giá số đang giữ chỗ</text>
+<rect x="595" y="275" width="470" height="160" rx="0" fill="white" stroke="#333" stroke-width="1.7"/>
+<text x="830.0" y="308" text-anchor="middle" font-family="Liberation Serif,serif" font-size="24" fill="#111" font-weight="bold">TTL</text>
+<path d="M595,323 L1065,323" stroke="#333" stroke-width="1.7" fill="none"/>
+<text x="609" y="353" text-anchor="start" font-family="Liberation Serif,serif" font-size="21" fill="#111" font-weight="normal">khoảng sống</text>
+<text x="609" y="384" text-anchor="start" font-family="Liberation Serif,serif" font-size="21" fill="#111" font-weight="normal">tính hạn từ mốc bắt đầu</text>
+<rect x="35" y="525" width="470" height="160" rx="0" fill="white" stroke="#333" stroke-width="1.7"/>
+<text x="270.0" y="558" text-anchor="middle" font-family="Liberation Serif,serif" font-size="24" fill="#111" font-weight="bold">Nhóm tài nguyên</text>
+<path d="M35,573 L505,573" stroke="#333" stroke-width="1.7" fill="none"/>
+<text x="49" y="603" text-anchor="start" font-family="Liberation Serif,serif" font-size="21" fill="#111" font-weight="normal">cleanup handle</text>
+<text x="49" y="634" text-anchor="start" font-family="Liberation Serif,serif" font-size="21" fill="#111" font-weight="normal">tài nguyên thuộc sở hữu</text>
+<rect x="595" y="525" width="470" height="160" rx="0" fill="white" stroke="#333" stroke-width="1.7"/>
+<text x="830.0" y="558" text-anchor="middle" font-family="Liberation Serif,serif" font-size="24" fill="#111" font-weight="bold">Thông báo vòng đời</text>
+<path d="M595,573 L1065,573" stroke="#333" stroke-width="1.7" fill="none"/>
+<text x="609" y="603" text-anchor="start" font-family="Liberation Serif,serif" font-size="21" fill="#111" font-weight="normal">cảnh báo / hoàn tất</text>
+<text x="609" y="634" text-anchor="start" font-family="Liberation Serif,serif" font-size="21" fill="#111" font-weight="normal">trạng thái suy dẫn</text>
+<text x="35" y="716" text-anchor="start" font-family="Liberation Serif,serif" font-size="20" fill="#111" font-weight="normal">R1: 1 → 0..*</text>
+<text x="595" y="716" text-anchor="start" font-family="Liberation Serif,serif" font-size="20" fill="#111" font-weight="normal">R2: 1 chứa 1</text>
+<text x="35" y="743" text-anchor="start" font-family="Liberation Serif,serif" font-size="20" fill="#111" font-weight="normal">R3: giới hạn theo repo</text>
+<text x="595" y="743" text-anchor="start" font-family="Liberation Serif,serif" font-size="20" fill="#111" font-weight="normal">R4: 0..1 nhóm</text>
+<text x="35" y="770" text-anchor="start" font-family="Liberation Serif,serif" font-size="20" fill="#111" font-weight="normal">R5: 0..* chu kỳ</text>
+</svg>

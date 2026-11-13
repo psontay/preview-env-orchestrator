@@ -1,0 +1,21 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam defaultFontName Liberation Serif
+skinparam defaultFontSize 15
+hide empty members
+participant "Application" as P0
+participant "EnvRepository" as P1
+participant "PostgreSQL" as P2
+P0 -> P1: Reserve(env, quota)
+P1 -> P2: BEGIN
+P1 -> P2: advisory_xact_lock(hash(repo))
+P1 -> P2: đọc env theo key
+P2 -> P1: state hoặc chưa có
+P1 -> P2: đếm state giữ quota
+P1 -> P1: Quota.IsExceeded(active)
+P1 -> P2: INSERT key + upsert env
+P1 -> P2: COMMIT
+P1 -> P0: true, nil
+@enduml

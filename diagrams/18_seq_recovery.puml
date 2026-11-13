@@ -1,0 +1,21 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam defaultFontName Liberation Serif
+skinparam defaultFontSize 15
+hide empty members
+participant "Composition root" as P0
+participant "Repository" as P1
+participant "WebhookService" as P2
+participant "Docker" as P3
+P0 -> P1: RecoverDestructions
+P0 -> P2: Recover(ctx)
+P2 -> P1: FindProvisioning
+P1 -> P2: reservation dang dở
+P2 -> P1: lookup PR theo key
+P2 -> P2: pr.CommitHash = env.CommitSHA
+P2 -> P3: Destroy(env.ID)
+P2 -> P3: Provision đúng SHA [async]
+P2 -> P1: lưu outcome qua completeProvision
+@enduml

@@ -1,0 +1,27 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam defaultFontName Liberation Serif
+skinparam defaultFontSize 15
+hide empty members
+actor "GitHub" as A0
+actor "Người dùng preview" as A1
+actor "Người vận hành" as A2
+rectangle "preview-env-orchestrator" {
+usecase "UC-01\nTiếp nhận và cấp preview" as U0
+usecase "UC-02\nTiếp nhận và cấp preview" as U1
+usecase "UC-03\nTiếp nhận và cấp preview" as U2
+usecase "UC-04\nTiếp nhận và cấp preview" as U3
+usecase "UC-05\nTiếp nhận và cấp preview" as U4
+usecase "UC-07\nQuản lý vòng đời" as U5
+usecase "UC-08\nQuản lý vòng đời" as U6
+usecase "UC-09\nQuản lý vòng đời" as U7
+usecase "UC-10\nQuản lý vòng đời" as U8
+usecase "UC-11\nQuản lý vòng đời" as U9
+usecase "UC-12\nQuản lý vòng đời" as U10
+usecase "UC-06\nChẩn đoán và cấu hình" as U11
+usecase "UC-13\nChẩn đoán và cấu hình" as U12
+usecase "UC-14\nChẩn đoán và cấu hình" as U13
+}
+@enduml

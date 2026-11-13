@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="810" viewBox="0 0 1200 810">
+<defs><marker id="arrow" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#222"/></marker><marker id="open" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0,0 L9,5 L0,10" fill="none" stroke="#222" stroke-width="1.4"/></marker><marker id="triangle" markerWidth="12" markerHeight="12" refX="11" refY="6" orient="auto"><path d="M0,0 L11,6 L0,12 Z" fill="white" stroke="#222"/></marker><marker id="diamond" markerWidth="13" markerHeight="10" refX="0" refY="5" orient="auto"><path d="M0,5 L6,0 L12,5 L6,10 Z" fill="#222"/></marker></defs>
+<rect width="1200" height="810" fill="white"/>
+<path d="M465,80 L735,80" stroke="#333" stroke-width="1.7" fill="none" marker-end="url(#arrow)"/>
+<text x="600.0" y="73" text-anchor="middle" font-family="Liberation Serif,serif" font-size="23" fill="#111" font-weight="normal">T1</text>
+<path d="M155,95 L55,95 L55,445 L155,445" fill="none" stroke="#333" stroke-width="1.7" marker-end="url(#arrow)"/>
+<text x="79" y="273.0" text-anchor="middle" font-family="Liberation Serif,serif" font-size="23" fill="#111" font-weight="normal">T2</text>
+<path d="M310,135 L310,230" stroke="#333" stroke-width="1.7" fill="none" marker-end="url(#arrow)"/>
+<text x="340" y="182.5" text-anchor="middle" font-family="Liberation Serif,serif" font-size="23" fill="#111" font-weight="normal">T3</text>
+<path d="M735,95 L565,95 L565,270 L465,270" fill="none" stroke="#333" stroke-width="1.7" marker-end="url(#arrow)"/>
+<text x="551" y="190.5" text-anchor="end" font-family="Liberation Serif,serif" font-size="23" fill="#111" font-weight="normal">T4</text>
+<path d="M465,270 L593,270 L593,95 L735,95" fill="none" stroke="#333" stroke-width="1.7" marker-end="url(#arrow)"/>
+<text x="607" y="190.5" text-anchor="start" font-family="Liberation Serif,serif" font-size="23" fill="#111" font-weight="normal">T5</text>
+<path d="M465,255 L735,255" stroke="#333" stroke-width="1.7" fill="none" marker-end="url(#arrow)"/>
+<text x="600.0" y="248" text-anchor="middle" font-family="Liberation Serif,serif" font-size="23" fill="#111" font-weight="normal">T6</text>
+<path d="M890,310 L890,405" stroke="#333" stroke-width="1.7" fill="none" marker-end="url(#arrow)"/>
+<text x="920" y="357.5" text-anchor="middle" font-family="Liberation Serif,serif" font-size="23" fill="#111" font-weight="normal">T7</text>
+<path d="M735,285 L465,285" stroke="#333" stroke-width="1.7" fill="none" marker-end="url(#arrow)"/>
+<text x="600.0" y="278" text-anchor="middle" font-family="Liberation Serif,serif" font-size="23" fill="#111" font-weight="normal">T8</text>
+<path d="M155,445 L105,445 L105,95 L155,95" fill="none" stroke="#333" stroke-width="1.7" marker-end="url(#arrow)"/>
+<text x="129" y="294.0" text-anchor="middle" font-family="Liberation Serif,serif" font-size="23" fill="#111" font-weight="normal">T9</text>
+<rect x="155" y="55" width="310" height="80" rx="14" fill="white" stroke="#333" stroke-width="1.7"/>
+<text x="310" y="88" text-anchor="middle" font-family="Liberation Serif,serif" font-size="24" fill="#111" font-weight="bold">PROVISIONING</text>
+<rect x="735" y="55" width="310" height="80" rx="14" fill="white" stroke="#333" stroke-width="1.7"/>
+<text x="890" y="88" text-anchor="middle" font-family="Liberation Serif,serif" font-size="24" fill="#111" font-weight="bold">RUNNING</text>
+<rect x="155" y="230" width="310" height="80" rx="14" fill="white" stroke="#333" stroke-width="1.7"/>
+<text x="310" y="263" text-anchor="middle" font-family="Liberation Serif,serif" font-size="24" fill="#111" font-weight="bold">MARK_FOR_DELETION</text>
+<rect x="735" y="230" width="310" height="80" rx="14" fill="white" stroke="#333" stroke-width="1.7"/>
+<text x="890" y="263" text-anchor="middle" font-family="Liberation Serif,serif" font-size="24" fill="#111" font-weight="bold">DESTROYING</text>
+<rect x="735" y="405" width="310" height="80" rx="14" fill="white" stroke="#333" stroke-width="1.7"/>
+<text x="890" y="438" text-anchor="middle" font-family="Liberation Serif,serif" font-size="24" fill="#111" font-weight="bold">DESTROYED</text>
+<rect x="155" y="405" width="310" height="80" rx="14" fill="white" stroke="#333" stroke-width="1.7"/>
+<text x="310" y="438" text-anchor="middle" font-family="Liberation Serif,serif" font-size="24" fill="#111" font-weight="bold">FAILED</text>
+<circle cx="310" cy="23" r="9" fill="#222"/>
+<path d="M310,32 L310,55" stroke="#333" stroke-width="1.7" fill="none" marker-end="url(#arrow)"/>
+<path d="M30,515 L1170,515" stroke="#333" stroke-width="1.7" fill="none"/>
+<text x="35" y="550" text-anchor="start" font-family="Liberation Serif,serif" font-size="23" fill="#111" font-weight="normal">T1: ready + lưu thành công</text>
+<text x="625" y="550" text-anchor="start" font-family="Liberation Serif,serif" font-size="23" fill="#111" font-weight="normal">T2: lỗi; rollback sạch</text>
+<text x="35" y="598" text-anchor="start" font-family="Liberation Serif,serif" font-size="23" fill="#111" font-weight="normal">T3: lỗi; còn tài nguyên</text>
+<text x="625" y="598" text-anchor="start" font-family="Liberation Serif,serif" font-size="23" fill="#111" font-weight="normal">T4: now &gt; expiry</text>
+<text x="35" y="646" text-anchor="start" font-family="Liberation Serif,serif" font-size="23" fill="#111" font-weight="normal">T5: ExtendOnce hợp lệ</text>
+<text x="625" y="646" text-anchor="start" font-family="Liberation Serif,serif" font-size="23" fill="#111" font-weight="normal">T6: đã cảnh báo; qua grace</text>
+<text x="35" y="694" text-anchor="start" font-family="Liberation Serif,serif" font-size="23" fill="#111" font-weight="normal">T7: Docker xong; lưu state</text>
+<text x="625" y="694" text-anchor="start" font-family="Liberation Serif,serif" font-size="23" fill="#111" font-weight="normal">T8: lỗi / startup recovery</text>
+<text x="35" y="742" text-anchor="start" font-family="Liberation Serif,serif" font-size="23" fill="#111" font-weight="normal">T9: redelivery + Reserve</text>
+</svg>

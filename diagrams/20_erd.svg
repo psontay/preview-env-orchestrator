@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="790" viewBox="0 0 1100 790">
+<defs><marker id="arrow" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#222"/></marker><marker id="open" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0,0 L9,5 L0,10" fill="none" stroke="#222" stroke-width="1.4"/></marker><marker id="triangle" markerWidth="12" markerHeight="12" refX="11" refY="6" orient="auto"><path d="M0,0 L11,6 L0,12 Z" fill="white" stroke="#222"/></marker><marker id="diamond" markerWidth="13" markerHeight="10" refX="0" refY="5" orient="auto"><path d="M0,5 L6,0 L12,5 L6,10 Z" fill="#222"/></marker></defs>
+<rect width="1100" height="790" fill="white"/>
+<path d="M505,132.5 L547.5,132.5 L547.5,245.0 L590,245.0" fill="none" stroke="#333" stroke-width="1.7" marker-end="url(#open)"/>
+<text x="552.5" y="178.75" text-anchor="middle" font-family="Liberation Serif,serif" font-size="21" fill="#111" font-weight="normal">FK</text>
+<path d="M505,377.5 L557.5,377.5 L557.5,245.0 L590,245.0" fill="none" stroke="#333" stroke-width="1.7" stroke-dasharray="7,5" marker-end="url(#open)"/>
+<text x="552.5" y="301.25" text-anchor="middle" font-family="Liberation Serif,serif" font-size="21" fill="#111" font-weight="normal">key logic</text>
+<rect x="35" y="30" width="470" height="205" rx="0" fill="white" stroke="#333" stroke-width="1.7"/>
+<text x="270.0" y="63" text-anchor="middle" font-family="Liberation Serif,serif" font-size="24" fill="#111" font-weight="bold">pull_requests</text>
+<path d="M35,78 L505,78" stroke="#333" stroke-width="1.7" fill="none"/>
+<text x="49" y="108" text-anchor="start" font-family="Liberation Serif,serif" font-size="21" fill="#111" font-weight="normal">id PK</text>
+<text x="49" y="139" text-anchor="start" font-family="Liberation Serif,serif" font-size="21" fill="#111" font-weight="normal">repo, number, author</text>
+<text x="49" y="170" text-anchor="start" font-family="Liberation Serif,serif" font-size="21" fill="#111" font-weight="normal">commit_hash, status</text>
+<text x="49" y="201" text-anchor="start" font-family="Liberation Serif,serif" font-size="21" fill="#111" font-weight="normal">created_at</text>
+<text x="49" y="232" text-anchor="start" font-family="Liberation Serif,serif" font-size="21" fill="#111" font-weight="normal">idempotency_key GENERATED UNIQUE</text>
+<rect x="590" y="30" width="475" height="430" rx="0" fill="white" stroke="#333" stroke-width="1.7"/>
+<text x="827.5" y="63" text-anchor="middle" font-family="Liberation Serif,serif" font-size="24" fill="#111" font-weight="bold">preview_environments</text>
+<path d="M590,78 L1065,78" stroke="#333" stroke-width="1.7" fill="none"/>
+<text x="604" y="108" text-anchor="start" font-family="Liberation Serif,serif" font-size="21" fill="#111" font-weight="normal">id PK; pull_request_id FK</text>
+<text x="604" y="139" text-anchor="start" font-family="Liberation Serif,serif" font-size="21" fill="#111" font-weight="normal">idempotency_key UNIQUE</text>
+<text x="604" y="170" text-anchor="start" font-family="Liberation Serif,serif" font-size="21" fill="#111" font-weight="normal">repo, commit_sha, status</text>
+<text x="604" y="201" text-anchor="start" font-family="Liberation Serif,serif" font-size="21" fill="#111" font-weight="normal">url, container_id, resource_group</text>
+<text x="604" y="232" text-anchor="start" font-family="Liberation Serif,serif" font-size="21" fill="#111" font-weight="normal">created_at, ttl_seconds, expires_at</text>
+<text x="604" y="263" text-anchor="start" font-family="Liberation Serif,serif" font-size="21" fill="#111" font-weight="normal">marked_for_deletion_at</text>
+<text x="604" y="294" text-anchor="start" font-family="Liberation Serif,serif" font-size="21" fill="#111" font-weight="normal">deletion_notified_at</text>
+<text x="604" y="325" text-anchor="start" font-family="Liberation Serif,serif" font-size="21" fill="#111" font-weight="normal">deletion_cancel_count CHECK 0..1</text>
+<text x="604" y="356" text-anchor="start" font-family="Liberation Serif,serif" font-size="21" fill="#111" font-weight="normal">last_error; destruction_notice_pending</text>
+<rect x="35" y="310" width="470" height="135" rx="0" fill="white" stroke="#333" stroke-width="1.7"/>
+<text x="270.0" y="343" text-anchor="middle" font-family="Liberation Serif,serif" font-size="24" fill="#111" font-weight="bold">idempotency_keys</text>
+<path d="M35,358 L505,358" stroke="#333" stroke-width="1.7" fill="none"/>
+<text x="49" y="388" text-anchor="start" font-family="Liberation Serif,serif" font-size="21" fill="#111" font-weight="normal">idempotency_key PK</text>
+<text x="49" y="419" text-anchor="start" font-family="Liberation Serif,serif" font-size="21" fill="#111" font-weight="normal">created_at</text>
+<rect x="35" y="565" width="470" height="135" rx="0" fill="white" stroke="#333" stroke-width="1.7"/>
+<text x="270.0" y="598" text-anchor="middle" font-family="Liberation Serif,serif" font-size="24" fill="#111" font-weight="bold">schema_migrations</text>
+<path d="M35,613 L505,613" stroke="#333" stroke-width="1.7" fill="none"/>
+<text x="49" y="643" text-anchor="start" font-family="Liberation Serif,serif" font-size="21" fill="#111" font-weight="normal">name PK</text>
+<text x="49" y="674" text-anchor="start" font-family="Liberation Serif,serif" font-size="21" fill="#111" font-weight="normal">applied_at</text>
+<text x="560" y="725" text-anchor="start" font-family="Liberation Serif,serif" font-size="20" fill="#111" font-weight="normal">FK: pull_requests 1 — 0..* preview_environments</text>
+<text x="560" y="758" text-anchor="start" font-family="Liberation Serif,serif" font-size="20" fill="#111" font-weight="normal">Nét đứt: cùng key, không có FK vật lý.</text>
+</svg>

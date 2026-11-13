@@ -1,0 +1,24 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam defaultFontName Liberation Serif
+skinparam defaultFontSize 15
+hide empty members
+actor "Người vận hành" as A0
+actor "PostgreSQL" as A1
+actor "Jaeger" as A2
+rectangle "preview-env-orchestrator" {
+usecase "UC-06\nTra cứu preview" as U0
+usecase "UC-12\nPhục hồi dang dở" as U1
+usecase "UC-13\nChuẩn bị cấu hình" as U2
+usecase "UC-14\nQuan sát tiến trình" as U3
+}
+A0 -- U0
+A0 -- U1
+A0 -- U2
+A0 -- U3
+A1 -- U0
+A1 -- U1
+A2 -- U3
+@enduml

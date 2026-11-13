@@ -1,0 +1,22 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam defaultFontName Liberation Serif
+skinparam defaultFontSize 15
+hide empty members
+participant "Người dùng" as P0
+participant "CancelHandler" as P1
+participant "EnvRepository" as P2
+participant "PostgreSQL" as P3
+P0 -> P1: GET link có token
+P1 -> P0: trang HTML; chưa mutation
+P0 -> P1: POST xác nhận
+P1 -> P1: ValidCancelToken
+P1 -> P2: CancelDeletion(key, now, grace)
+P2 -> P3: SELECT ... FOR UPDATE
+P2 -> P2: ExtendOnce kiểm tra guard
+P2 -> P3: Save + COMMIT
+P2 -> P1: env RUNNING
+P1 -> P0: 200; TTL mới hai phút
+@enduml

@@ -1,0 +1,20 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam defaultFontName Liberation Serif
+skinparam defaultFontSize 15
+hide empty members
+component "GitHub\nWebhook và source" as C0
+component "HTTP\nXác thực, dịch dữ liệu" as C1
+component "Application\nĐiều phối use case" as C2
+component "Domain\nQuy tắc vòng đời" as C3
+component "Adapters\nDB, Docker, thông báo" as C4
+component "Người vận hành\nCấu hình và chẩn đoán" as C5
+C0 --> C1: sự kiện
+C1 --> C2: yêu cầu hợp lệ
+C2 --> C3: quy tắc
+C2 --> C4: qua port
+C5 --> C1: tra cứu
+C4 --> C0: comment
+@enduml

@@ -1,0 +1,37 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam defaultFontName Liberation Serif
+skinparam defaultFontSize 15
+hide empty members
+class "WebhookService" as C0 {
+  HandlePullRequestEvent
+  Recover, Wait
+}
+class "CleanupService" as C1 {
+  Run
+  mark / claim / notify
+}
+class "EnvironmentRepository" as C2 {
+  Reserve, CancelDeletion
+  RecordDeletionNotice
+  ClaimDestruction
+}
+class "DockerOrchestrationService" as C3 {
+  Provision
+  Destroy
+}
+class "Postgres / Memory" as C4 {
+  implement repository
+}
+class "RealService / MockService" as C5 {
+  implement Docker port
+}
+C0 --> C2: uses
+C1 --> C2: uses
+C0 --> C3: uses
+C1 --> C3: uses
+C4 ..|> C2: realization
+C5 ..|> C3: realization
+@enduml

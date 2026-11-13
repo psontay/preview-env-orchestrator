@@ -1,0 +1,20 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam defaultFontName Liberation Serif
+skinparam defaultFontSize 15
+hide empty members
+participant "Hệ điều hành" as P0
+participant "run()" as P1
+participant "HTTP server" as P2
+participant "Job / worker" as P3
+participant "Adapters" as P4
+P0 -> P1: SIGTERM / Interrupt
+P1 -> P2: Shutdown có timeout
+P1 -> P3: cancel runtime context
+P1 -> P3: WebhookService.Wait
+P3 -> P1: jobs và worker kết thúc
+P1 -> P4: đóng Docker client và pool
+P1 -> P4: flush tracing có timeout
+@enduml

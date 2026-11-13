@@ -1,0 +1,19 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam defaultFontName Liberation Serif
+skinparam defaultFontSize 15
+hide empty members
+state "Chưa hoàn tất cleanup" as S0
+state "DESTROYED / pending" as S1
+state "Đang thử gửi" as S2
+state "Đã xác nhận" as S3
+state "Lịch sử không pending" as S4
+[*] --> S0
+S0 --> S1: Save DESTROYED + pending
+S1 --> S2: worker đọc pending
+S2 --> S1: GitHub hoặc confirm lỗi
+S2 --> S3: ConfirmDestructionNotice
+S4 --> S4: không phát lại lịch sử
+@enduml

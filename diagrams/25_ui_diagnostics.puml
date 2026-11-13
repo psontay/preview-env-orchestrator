@@ -1,0 +1,16 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam defaultFontName Liberation Serif
+skinparam defaultFontSize 15
+hide empty members
+title ĐẶC TẢ RESPONSE — DỮ LIỆU MINH HOẠ CẤU TRÚC
+rectangle "Trạng thái preview" {
+rectangle "status • commit_sha • url • resource_group" as L0
+rectangle "expires_at • marked_for_deletion_at" as L1
+rectangle "deletion_notified_at • deletion_cancel_count" as L2
+rectangle "destruction_notice_pending • last_error" as L3
+rectangle "RUNNING: có admin credential sau xác thực" as L4
+}
+@enduml

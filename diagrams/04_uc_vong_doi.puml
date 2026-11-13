@@ -1,0 +1,22 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam defaultFontName Liberation Serif
+skinparam defaultFontSize 15
+hide empty members
+actor "Người dùng preview" as A0
+actor "GitHub" as A1
+actor "Docker Engine" as A2
+rectangle "preview-env-orchestrator" {
+usecase "UC-07\nPhát hiện hết TTL" as U0
+usecase "UC-08\nGửi cảnh báo" as U1
+usecase "UC-09\nHuỷ và gia hạn" as U2
+usecase "UC-10\nDọn tài nguyên" as U3
+usecase "UC-11\nBáo dọn xong" as U4
+}
+A0 -- U2
+A1 -- U1
+A2 -- U3
+A1 -- U4
+@enduml

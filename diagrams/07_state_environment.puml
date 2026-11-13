@@ -1,0 +1,24 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam defaultFontName Liberation Serif
+skinparam defaultFontSize 15
+hide empty members
+state "PROVISIONING" as S0
+state "RUNNING" as S1
+state "MARK_FOR_DELETION" as S2
+state "DESTROYING" as S3
+state "DESTROYED" as S4
+state "FAILED" as S5
+[*] --> S0
+S0 --> S1: ready + lưu thành công
+S0 --> S5: lỗi; rollback sạch
+S0 --> S2: lỗi; còn tài nguyên
+S1 --> S2: now > expiry
+S2 --> S1: ExtendOnce hợp lệ
+S2 --> S3: đã cảnh báo; qua grace
+S3 --> S4: Docker xong; lưu state
+S3 --> S2: lỗi / startup recovery
+S5 --> S0: redelivery + Reserve
+@enduml

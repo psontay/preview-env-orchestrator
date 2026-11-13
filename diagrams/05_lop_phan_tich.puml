@@ -1,0 +1,39 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam defaultFontName Liberation Serif
+skinparam defaultFontSize 15
+hide empty members
+class "PullRequest" as C0 {
+  định danh PR
+  repository, số PR
+  phiên bản được tiếp nhận
+}
+class "PreviewEnvironment" as C1 {
+  định danh theo commit
+  trạng thái, URL
+  hạn sống và quyền gia hạn
+}
+class "Quota" as C2 {
+  số môi trường tối đa
+  đánh giá số đang giữ chỗ
+}
+class "TTL" as C3 {
+  khoảng sống
+  tính hạn từ mốc bắt đầu
+}
+class "Nhóm tài nguyên" as C4 {
+  cleanup handle
+  tài nguyên thuộc sở hữu
+}
+class "Thông báo vòng đời" as C5 {
+  cảnh báo / hoàn tất
+  trạng thái suy dẫn
+}
+C0 --> C1: 1 → 0..*
+C1 --> C3: 1 chứa 1
+C2 --> C1: giới hạn theo repo
+C1 --> C4: 0..1 nhóm
+C1 --> C5: 0..* chu kỳ
+@enduml

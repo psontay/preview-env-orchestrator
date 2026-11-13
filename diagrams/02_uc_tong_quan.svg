@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="730" viewBox="0 0 1100 730">
+<defs><marker id="arrow" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#222"/></marker><marker id="open" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0,0 L9,5 L0,10" fill="none" stroke="#222" stroke-width="1.4"/></marker><marker id="triangle" markerWidth="12" markerHeight="12" refX="11" refY="6" orient="auto"><path d="M0,0 L11,6 L0,12 Z" fill="white" stroke="#222"/></marker><marker id="diamond" markerWidth="13" markerHeight="10" refX="0" refY="5" orient="auto"><path d="M0,5 L6,0 L12,5 L6,10 Z" fill="#222"/></marker></defs>
+<rect width="1100" height="730" fill="white"/>
+<rect x="175" y="25" width="890" height="665" rx="0" fill="white" stroke="#333" stroke-width="1.7"/>
+<text x="620" y="58" text-anchor="middle" font-family="Liberation Serif,serif" font-size="25" fill="#111" font-weight="bold">Giải pháp preview-env-orchestrator</text>
+<circle cx="80" cy="100" r="13" fill="white" stroke="#222" stroke-width="2"/>
+<path d="M80,113 L80,153" stroke="#333" stroke-width="1.7" fill="none"/>
+<path d="M57,130 L103,130" stroke="#333" stroke-width="1.7" fill="none"/>
+<path d="M80,153 L59,180" stroke="#333" stroke-width="1.7" fill="none"/>
+<path d="M80,153 L101,180" stroke="#333" stroke-width="1.7" fill="none"/>
+<text x="80" y="208" text-anchor="middle" font-family="Liberation Serif,serif" font-size="24" fill="#111" font-weight="normal">GitHub</text>
+<circle cx="80" cy="290" r="13" fill="white" stroke="#222" stroke-width="2"/>
+<path d="M80,303 L80,343" stroke="#333" stroke-width="1.7" fill="none"/>
+<path d="M57,320 L103,320" stroke="#333" stroke-width="1.7" fill="none"/>
+<path d="M80,343 L59,370" stroke="#333" stroke-width="1.7" fill="none"/>
+<path d="M80,343 L101,370" stroke="#333" stroke-width="1.7" fill="none"/>
+<text x="80" y="398" text-anchor="middle" font-family="Liberation Serif,serif" font-size="24" fill="#111" font-weight="normal">Người dùng</text>
+<text x="80" y="427" text-anchor="middle" font-family="Liberation Serif,serif" font-size="24" fill="#111" font-weight="normal">preview</text>
+<circle cx="80" cy="480" r="13" fill="white" stroke="#222" stroke-width="2"/>
+<path d="M80,493 L80,533" stroke="#333" stroke-width="1.7" fill="none"/>
+<path d="M57,510 L103,510" stroke="#333" stroke-width="1.7" fill="none"/>
+<path d="M80,533 L59,560" stroke="#333" stroke-width="1.7" fill="none"/>
+<path d="M80,533 L101,560" stroke="#333" stroke-width="1.7" fill="none"/>
+<text x="80" y="588" text-anchor="middle" font-family="Liberation Serif,serif" font-size="24" fill="#111" font-weight="normal">Người vận hành</text>
+<rect x="230" y="105" width="780" height="150" rx="0" fill="white" stroke="#333" stroke-width="1.7"/>
+<text x="620" y="142" text-anchor="middle" font-family="Liberation Serif,serif" font-size="25" fill="#111" font-weight="bold">Tiếp nhận và cấp preview</text>
+<text x="620" y="190" text-anchor="middle" font-family="Liberation Serif,serif" font-size="23" fill="#111" font-weight="normal">UC-01 • UC-02 • UC-03 • UC-04 • UC-05</text>
+<path d="M110,135 L230,180" stroke="#333" stroke-width="1.7" fill="none"/>
+<rect x="230" y="290" width="780" height="150" rx="0" fill="white" stroke="#333" stroke-width="1.7"/>
+<text x="620" y="327" text-anchor="middle" font-family="Liberation Serif,serif" font-size="25" fill="#111" font-weight="bold">Quản lý vòng đời</text>
+<text x="620" y="375" text-anchor="middle" font-family="Liberation Serif,serif" font-size="23" fill="#111" font-weight="normal">UC-07 • UC-08 • UC-09 • UC-10 • UC-11 • UC-12</text>
+<path d="M110,325 L230,365" stroke="#333" stroke-width="1.7" fill="none"/>
+<rect x="230" y="475" width="780" height="150" rx="0" fill="white" stroke="#333" stroke-width="1.7"/>
+<text x="620" y="512" text-anchor="middle" font-family="Liberation Serif,serif" font-size="25" fill="#111" font-weight="bold">Chẩn đoán và cấu hình</text>
+<text x="620" y="560" text-anchor="middle" font-family="Liberation Serif,serif" font-size="23" fill="#111" font-weight="normal">UC-06 • UC-13 • UC-14</text>
+<path d="M110,515 L230,550" stroke="#333" stroke-width="1.7" fill="none"/>
+</svg>

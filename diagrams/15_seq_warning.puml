@@ -1,0 +1,21 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam defaultFontName Liberation Serif
+skinparam defaultFontSize 15
+hide empty members
+participant "Worker" as P0
+participant "EnvRepository" as P1
+participant "PRRepository" as P2
+participant "GitHub" as P3
+P0 -> P1: FindMarkedForDeletion
+P1 -> P0: env chưa notified
+P0 -> P2: FindByIdempotencyKey
+P2 -> P0: đúng PR kể cả commit cũ
+P0 -> P3: CommentOnPR(warning)
+P3 -> P0: 201 Created
+P0 -> P1: RecordDeletionNotice(key, mark, now)
+P1 -> P0: updated hoặc nil nếu huỷ
+P0 -> P0: lượt sau mới xét deadline
+@enduml
