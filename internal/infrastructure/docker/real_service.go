@@ -6,14 +6,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
+	"net/http"
 	"os"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/go-connections/nat"
 
 	"preview-env-orchestrator/internal/application"
@@ -27,7 +29,11 @@ import (
 // MockService (mock_service.go) được giữ nguyên cho unit test; main.go chọn
 // giữa hai adapter qua biến môi trường DOCKER_DRIVER (mock | real).
 type RealService struct {
-	cli *client.Client
+	cli        *client.Client
+	source     application.SourceArchiveProvider
+	stack      StackConfig
+	buildGate  chan struct{}
+	httpClient *http.Client
 }
 
 var _ application.DockerOrchestrationService = (*RealService)(nil)
@@ -39,13 +45,21 @@ func NewRealService() (*RealService, error) {
 	if err != nil {
 		return nil, fmt.Errorf("docker: tạo client: %w", err)
 	}
-	return &RealService{cli: cli}, nil
+	return &RealService{cli: cli, buildGate: make(chan struct{}, 1)}, nil
 }
+
+func (s *RealService) Close() error { return s.cli.Close() }
 
 // Provision: (1) tạo + chạy container từ image cấu hình sẵn với PublishAllPorts
 // (Docker tự cấp port host động), (2) copy file seed .sql vào container và chạy
 // nó qua exec, (3) inspect để lấy port host vừa cấp phát rồi dựng URL preview.
 func (s *RealService) Provision(ctx context.Context, req application.ProvisionRequest) (application.ProvisionResult, error) {
+	if req.Repo != "" {
+		return s.provisionStack(ctx, req)
+	}
+	if req.Image == "" {
+		return application.ProvisionResult{}, errors.New("docker: missing image or source repository")
+	}
 	// SDK không tự pull image như CLI `docker run` — chủ động đảm bảo có image.
 	if err := s.ensureImage(ctx, req.Image); err != nil {
 		return application.ProvisionResult{}, fmt.Errorf("docker: chuẩn bị image %q: %w", req.Image, err)
@@ -54,15 +68,23 @@ func (s *RealService) Provision(ctx context.Context, req application.ProvisionRe
 	created, err := s.cli.ContainerCreate(ctx,
 		&container.Config{
 			Image:  req.Image,
-			Labels: map[string]string{"preview-env-id": req.EnvID},
+			Labels: map[string]string{"preview-env-id": req.EnvID, ownerLabel: ownerValue},
 		},
 		&container.HostConfig{PublishAllPorts: true},
 		nil, nil,
-		"preview-"+req.EnvID,
+		ResourceName(req.EnvID),
 	)
 	if err != nil {
 		return application.ProvisionResult{}, fmt.Errorf("docker: create container: %w", err)
 	}
+	succeeded := false
+	defer func() {
+		if !succeeded {
+			cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
+			defer cancel()
+			_ = s.cli.ContainerRemove(cleanupCtx, created.ID, container.RemoveOptions{Force: true, RemoveVolumes: true})
+		}
+	}()
 
 	if err := s.cli.ContainerStart(ctx, created.ID, container.StartOptions{}); err != nil {
 		return application.ProvisionResult{}, fmt.Errorf("docker: start container: %w", err)
@@ -84,6 +106,7 @@ func (s *RealService) Provision(ctx context.Context, req application.ProvisionRe
 		return application.ProvisionResult{}, errors.New("docker: container không expose port nào để dựng URL preview")
 	}
 
+	succeeded = true
 	return application.ProvisionResult{
 		ContainerID: created.ID,
 		URL:         url,
@@ -93,9 +116,35 @@ func (s *RealService) Provision(ctx context.Context, req application.ProvisionRe
 // Destroy dừng (grace 10s) rồi xoá hẳn container. Bỏ qua lỗi "đã dừng" ở bước
 // stop, chỉ trả lỗi nếu remove thất bại.
 func (s *RealService) Destroy(ctx context.Context, containerID string) error {
+	if containerID == "" {
+		return nil
+	}
+	if strings.ContainsAny(containerID, "/:") {
+		return s.destroyStack(ctx, ResourceName(containerID))
+	}
+	if strings.HasPrefix(containerID, "peo-") && len(containerID) == 28 {
+		return s.destroyStack(ctx, containerID)
+	}
+	inspect, err := s.cli.ContainerInspect(ctx, containerID)
+	if errdefs.IsNotFound(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if inspect.Config.Labels[ownerLabel] != ownerValue {
+		return errors.New("refusing to delete an unmanaged container")
+	}
+	if group := inspect.Config.Labels[groupLabel]; group != "" {
+		return s.destroyStack(ctx, group)
+	}
 	timeout := 10
 	_ = s.cli.ContainerStop(ctx, containerID, container.StopOptions{Timeout: &timeout})
-	return s.cli.ContainerRemove(ctx, containerID, container.RemoveOptions{Force: true})
+	err = s.cli.ContainerRemove(ctx, containerID, container.RemoveOptions{Force: true, RemoveVolumes: true})
+	if errdefs.IsNotFound(err) {
+		return nil
+	}
+	return err
 }
 
 // ensureImage kéo image từ registry nếu chưa có sẵn cục bộ. Phải đọc hết
@@ -109,8 +158,7 @@ func (s *RealService) ensureImage(ctx context.Context, ref string) error {
 		return err
 	}
 	defer rc.Close()
-	_, err = io.Copy(io.Discard, rc)
-	return err
+	return consumeDockerStream(rc)
 }
 
 // seedDatabase copy file .sql vào /tmp trong container bằng CopyToContainer

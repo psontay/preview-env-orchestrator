@@ -10,9 +10,13 @@ package main
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"go.opentelemetry.io/otel"
@@ -31,57 +35,119 @@ import (
 )
 
 func main() {
+	if err := run(); err != nil {
+		log.Printf("startup/server error: %v", err)
+		os.Exit(1)
+	}
+}
+
+func run() error {
+	cfg, err := loadConfig()
+	if err != nil {
+		return err
+	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 	// ---- OpenTelemetry: khởi tạo TracerProvider trước mọi thứ khác ----
 	// Nếu collector chưa chạy, exporter vẫn tạo được (nó kết nối lười) —
 	// span sẽ được buffer và thử gửi lại, nên service không bị chặn.
-	shutdownTracing, err := setupTracing(context.Background())
+	shutdownTracing, err := setupTracing(ctx)
 	if err != nil {
 		log.Printf("otel: không khởi tạo được tracing (%v) — chạy tiếp không có trace", err)
 	} else {
-		defer func() { _ = shutdownTracing(context.Background()) }()
+		defer func() {
+			flushCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			_ = shutdownTracing(flushCtx)
+		}()
 	}
 
 	// ---- Wiring (Composition Root) ----
 	// Đây là NƠI DUY NHẤT trong toàn bộ codebase biết về các implementation
 	// cụ thể. Domain và Application layer chỉ biết tới interface.
-	prRepo, envRepo := newRepositories()
-	dockerSvc := newDockerService()
+	prRepo, envRepo, closeStorage, err := newRepositories(ctx)
+	if err != nil {
+		return err
+	}
+	defer closeStorage()
+	dockerSvc, closeDocker, err := newDockerService(cfg)
+	if err != nil {
+		return err
+	}
+	defer closeDocker()
 	notifier := newGitHubNotifier()
 
-	quota := domain.Quota{MaxEnvironments: 5}
-	defaultTTL := domain.TTL{Duration: 24 * time.Hour}
+	quota := domain.Quota{MaxEnvironments: cfg.Quota}
+	defaultTTL := domain.TTL{Duration: cfg.TTL}
 
 	// baseURL là địa chỉ công khai mà GitHub/người dùng dùng để gọi ngược
 	// lại service này (ví dụ endpoint "Hủy lệnh xoá"). Đọc từ biến môi
 	// trường để không hardcode domain thật vào comment PR.
-	baseURL := getenv("PUBLIC_BASE_URL", "http://localhost:8080")
+	baseURL := cfg.BaseURL
 
 	webhookService := application.NewWebhookService(prRepo, envRepo, dockerSvc, notifier, quota, defaultTTL, baseURL)
 	cleanupService := application.NewCleanupService(envRepo, prRepo, dockerSvc, notifier, baseURL)
+	webhookService.ConfigureRuntime(ctx, cfg.ProvisionTimeout, cfg.Secret)
+	cleanupService.Configure(cfg.Grace, cfg.Secret)
+	defer func() { stop(); webhookService.Wait() }()
+	if err := envRepo.RecoverDestructions(ctx); err != nil {
+		return err
+	}
+	if err := webhookService.Recover(ctx); err != nil {
+		return fmt.Errorf("recover pending builds: %w", err)
+	}
 
-	// ---- Background worker: quét TTL mỗi 5 phút ----
-	go runCleanupLoop(cleanupService, 5*time.Minute)
+	// ---- Background worker: sweep interval from configuration ----
+	workerDone := make(chan struct{})
+	go func() { defer close(workerDone); runCleanupLoop(ctx, cleanupService, cfg.Sweep) }()
 
 	// ---- HTTP server ----
 	mux := http.NewServeMux()
 	// Webhook được bọc bởi middleware xác thực chữ ký HMAC-SHA256 của
 	// GitHub (header X-Hub-Signature-256). Secret đọc từ GITHUB_WEBHOOK_SECRET.
-	webhookHandler := handlers.VerifyGitHubSignature(
-		os.Getenv("GITHUB_WEBHOOK_SECRET"),
-		handlers.NewWebhookHandler(webhookService),
-	)
-	mux.Handle("/webhooks/github", webhookHandler)
-	mux.Handle("POST /environments/{id}/cancel-deletion", handlers.NewCancelDeletionHandler(envRepo))
-	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+	webhook := handlers.NewWebhookHandler(webhookService)
+	if getenv("DOCKER_DRIVER", "mock") == "real" {
+		webhook.ConfigureRepository(cfg.Repository, cfg.Actor)
+	}
+	mux.Handle("POST /webhooks/github", handlers.VerifyGitHubSignature(cfg.Secret, webhook))
+	canceler := handlers.NewCancelDeletionHandler(envRepo)
+	canceler.Configure(cfg.Grace, cfg.Secret)
+	mux.Handle("POST /environments/{id}/cancel-deletion", canceler)
+	mux.Handle("GET /environments/{id}/cancel-deletion", canceler)
+	mux.Handle("GET /environments/{id}", handlers.NewEnvironmentHandler(envRepo, cfg.Secret))
+	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	})
+	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		_, _ = w.Write([]byte("Preview environment orchestrator is running.\nHealth check: /healthz\nGitHub webhook: POST /webhooks/github\n"))
+	})
 
-	addr := ":8080"
+	addr := getenv("HTTP_ADDR", ":8080")
 	log.Printf("preview-env-orchestrator đang lắng nghe tại %s", addr)
-	if err := http.ListenAndServe(addr, mux); err != nil {
-		log.Fatalf("server lỗi: %v", err)
+	server := &http.Server{Addr: addr, Handler: mux, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second}
+	serverErrors := make(chan error, 1)
+	go func() { serverErrors <- server.ListenAndServe() }()
+	select {
+	case <-ctx.Done():
+	case err = <-serverErrors:
+		stop()
 	}
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	shutdownErr := server.Shutdown(shutdownCtx)
+	stop()
+	webhookService.Wait()
+	<-workerDone
+	if err != nil && !errors.Is(err, http.ErrServerClosed) {
+		return err
+	}
+	return shutdownErr
 }
 
 // setupTracing khởi tạo OpenTelemetry TracerProvider và export span qua
@@ -133,21 +199,26 @@ func getenv(key, def string) string {
 //
 // Cả hai đều implement cùng interface trong internal/domain nên phần còn lại
 // của chương trình không đổi.
-func newRepositories() (domain.PullRequestRepository, domain.EnvironmentRepository) {
+func newRepositories(ctx context.Context) (domain.PullRequestRepository, domain.EnvironmentRepository, func(), error) {
 	switch driver := getenv("STORAGE_DRIVER", "memory"); driver {
 	case "postgres":
-		pool, err := postgres.NewPool(context.Background())
+		startupCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		defer cancel()
+		pool, err := postgres.NewPool(startupCtx)
 		if err != nil {
-			log.Fatalf("storage=postgres: %v", err)
+			return nil, nil, nil, errors.New("cannot connect to orchestrator PostgreSQL; check DATABASE_URL and database readiness")
+		}
+		if err := postgres.RunMigrations(startupCtx, pool, getenv("MIGRATIONS_DIR", "migrations")); err != nil {
+			pool.Close()
+			return nil, nil, nil, err
 		}
 		log.Printf("storage: postgres")
-		return postgres.NewPullRequestRepository(pool), postgres.NewEnvironmentRepository(pool)
+		return postgres.NewPullRequestRepository(pool), postgres.NewEnvironmentRepository(pool), pool.Close, nil
 	case "memory":
 		log.Printf("storage: memory (in-process, không bền vững)")
-		return memory.NewPullRequestRepository(), memory.NewEnvironmentRepository()
+		return memory.NewPullRequestRepository(), memory.NewEnvironmentRepository(), func() {}, nil
 	default:
-		log.Fatalf("STORAGE_DRIVER không hợp lệ: %q (chấp nhận: memory | postgres)", driver)
-		return nil, nil
+		return nil, nil, nil, fmt.Errorf("invalid STORAGE_DRIVER: %q", driver)
 	}
 }
 
@@ -156,21 +227,24 @@ func newRepositories() (domain.PullRequestRepository, domain.EnvironmentReposito
 //
 //	mock (mặc định) — MockService, giả lập, không cần Docker daemon
 //	real            — RealService, gọi Docker Engine SDK thật
-func newDockerService() application.DockerOrchestrationService {
+func newDockerService(cfg config) (application.DockerOrchestrationService, func(), error) {
 	switch driver := getenv("DOCKER_DRIVER", "mock"); driver {
 	case "real":
 		svc, err := dockerinfra.NewRealService()
 		if err != nil {
-			log.Fatalf("docker=real: %v", err)
+			return nil, nil, err
+		}
+		if err := svc.ConfigurePreview(github.NewSource(os.Getenv("GITHUB_TOKEN"), "", nil), dockerinfra.StackConfig{Repository: cfg.Repository, Secret: cfg.Secret, ControlContainer: os.Getenv("ORCHESTRATOR_CONTAINER"), ReadyTimeout: cfg.ReadyTimeout}); err != nil {
+			_ = svc.Close()
+			return nil, nil, err
 		}
 		log.Printf("docker: real (Docker Engine SDK)")
-		return svc
+		return svc, func() { _ = svc.Close() }, nil
 	case "mock":
 		log.Printf("docker: mock (giả lập)")
-		return dockerinfra.NewMockService()
+		return dockerinfra.NewMockService(), func() {}, nil
 	default:
-		log.Fatalf("DOCKER_DRIVER không hợp lệ: %q (chấp nhận: mock | real)", driver)
-		return nil
+		return nil, nil, fmt.Errorf("invalid DOCKER_DRIVER: %q", driver)
 	}
 }
 
@@ -197,10 +271,15 @@ func newGitHubNotifier() application.GitHubNotifier {
 	}
 }
 
-func runCleanupLoop(svc *application.CleanupService, interval time.Duration) {
+func runCleanupLoop(ctx context.Context, svc *application.CleanupService, interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
-	for range ticker.C {
-		svc.Run(context.Background())
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			svc.Run(ctx)
+		}
 	}
 }

@@ -32,7 +32,7 @@ func TestHandlePullRequestEvent_IdempotentOnDuplicateWebhook(t *testing.T) {
 	}
 
 	// Đợi provisioning bất đồng bộ hoàn tất.
-	time.Sleep(500 * time.Millisecond)
+	svc.Wait()
 
 	env, err := envRepo.FindByIdempotencyKey(context.Background(), pr.IdempotencyKey())
 	if err != nil {
@@ -62,7 +62,7 @@ func TestHandlePullRequestEvent_QuotaExceeded(t *testing.T) {
 	if err := svc.HandlePullRequestEvent(context.Background(), first); err != nil {
 		t.Fatalf("first PR should succeed: %v", err)
 	}
-	time.Sleep(500 * time.Millisecond) // để env đầu tiên chuyển sang RUNNING trước khi đếm quota
+	svc.Wait()
 
 	err := svc.HandlePullRequestEvent(context.Background(), second)
 	if err != application.ErrQuotaExceeded {

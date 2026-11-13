@@ -3,9 +3,13 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"html/template"
 	"log"
 	"net/http"
+	"time"
 
+	"preview-env-orchestrator/internal/application"
 	"preview-env-orchestrator/internal/domain"
 )
 
@@ -15,7 +19,7 @@ import (
 // handler không phụ thuộc vào toàn bộ repository.
 type environmentCanceler interface {
 	FindByIdempotencyKey(ctx context.Context, key string) (*domain.PreviewEnvironment, error)
-	Save(ctx context.Context, env *domain.PreviewEnvironment) error
+	CancelDeletion(ctx context.Context, key string, now time.Time, grace time.Duration) (*domain.PreviewEnvironment, error)
 }
 
 // CancelDeletionHandler phục vụ POST /environments/{id}/cancel-deletion.
@@ -28,12 +32,20 @@ type environmentCanceler interface {
 // cách WebhookService dựng environment (xem webhook_service.go), ID và
 // IdempotencyKey luôn bằng nhau, nên tra cứu qua FindByIdempotencyKey.
 type CancelDeletionHandler struct {
-	envRepo environmentCanceler
+	envRepo    environmentCanceler
+	grace      time.Duration
+	signingKey string
 }
 
 func NewCancelDeletionHandler(envRepo environmentCanceler) *CancelDeletionHandler {
-	return &CancelDeletionHandler{envRepo: envRepo}
+	return &CancelDeletionHandler{envRepo: envRepo, grace: 10 * time.Minute}
 }
+
+func (h *CancelDeletionHandler) Configure(grace time.Duration, signingKey string) {
+	h.grace, h.signingKey = grace, signingKey
+}
+
+var cancelPage = template.Must(template.New("cancel").Parse(`<!doctype html><html lang="vi"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Giữ preview</title><h1>Huỷ lệnh xoá preview</h1><p>Chỉ dùng một lần, trong grace period. Sau khi xác nhận, TTL mới là 2 phút; hết TTL vẫn đánh dấu và chờ grace period trước khi xoá.</p><form method="post"><button type="submit">Xác nhận giữ thêm 2 phút</button></form></html>`))
 
 type cancelDeletionResponse struct {
 	ID     string `json:"id"`
@@ -42,7 +54,7 @@ type cancelDeletionResponse struct {
 }
 
 func (h *CancelDeletionHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
+	if r.Method != http.MethodPost && r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
@@ -50,6 +62,17 @@ func (h *CancelDeletionHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 	id := r.PathValue("id")
 	if id == "" {
 		http.Error(w, "missing environment id", http.StatusBadRequest)
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Referrer-Policy", "no-referrer")
+	if h.signingKey != "" && !application.ValidCancelToken(id, r.URL.Query().Get("token"), h.signingKey) {
+		http.Error(w, "invalid cancellation token", http.StatusForbidden)
+		return
+	}
+	if r.Method == http.MethodGet {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_ = cancelPage.Execute(w, nil)
 		return
 	}
 
@@ -66,8 +89,12 @@ func (h *CancelDeletionHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 
 	switch env.Status {
 	case domain.EnvMarkedForDeletion:
-		env.CancelDeletion()
-		if err := h.envRepo.Save(r.Context(), env); err != nil {
+		env, err = h.envRepo.CancelDeletion(r.Context(), id, time.Now(), h.grace)
+		if errors.Is(err, domain.ErrCannotCancelDeletion) {
+			http.Error(w, "cancellation already used or grace period elapsed", http.StatusConflict)
+			return
+		}
+		if err != nil {
 			log.Printf("[cancel-deletion] lỗi lưu env=%s: %v", id, err)
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
@@ -76,7 +103,7 @@ func (h *CancelDeletionHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 		writeJSON(w, http.StatusOK, cancelDeletionResponse{
 			ID:     env.ID,
 			Status: string(env.Status),
-			Detail: "đã hủy lệnh xoá, môi trường quay lại RUNNING",
+			Detail: "đã hủy lệnh xoá một lần, TTL mới là 2 phút từ thời điểm xác nhận",
 		})
 
 	case domain.EnvRunning:

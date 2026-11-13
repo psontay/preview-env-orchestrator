@@ -1,9 +1,9 @@
 # docker-compose: chạy toàn bộ stack demo cùng lúc.
 #
 #   docker compose up -d --build
-#   # app:      http://localhost:8080  (/healthz, /webhooks/github)
+#   # app:      http://localhost:18080  (/healthz, /webhooks/github)
 #   # Jaeger:   http://localhost:16686 (xem trace)
-#   # Postgres: localhost:5432
+#   # Postgres: localhost:15432 (DBeaver); compose services use postgres:5432
 #
 # Postgres có healthcheck; service `app` chỉ khởi động sau khi Postgres
 # báo healthy (depends_on: condition: service_healthy).
@@ -19,23 +19,20 @@ services:
       # Bật đầu vào OTLP (gRPC 4317 + HTTP 4318) trên Jaeger collector.
       COLLECTOR_OTLP_ENABLED: "true"
     ports:
-      - "16686:16686" # Jaeger UI (xem trace trên trình duyệt)
-      - "4317:4317"   # OTLP/gRPC — endpoint mà setupTracing() trỏ tới
-      - "4318:4318"   # OTLP/HTTP — để sẵn nếu sau này đổi exporter
+      - "127.0.0.1:${JAEGER_UI_PORT:-16686}:16686"
 
   postgres:
     image: postgres:16-alpine
     container_name: peo-postgres
+    ports:
+      - "127.0.0.1:15432:5432"
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-preview}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-preview}
       POSTGRES_DB: ${POSTGRES_DB:-preview}
-    ports:
-      - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-      # File *.sql chạy 1 lần khi volume còn trống -> auto-migrate lúc dựng mới.
-      - ./migrations:/docker-entrypoint-initdb.d:ro
+      # App applies versioned migrations on startup, including existing volumes.
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-preview} -d ${POSTGRES_DB:-preview}"]
       interval: 5s
@@ -45,6 +42,10 @@ services:
   app:
     build: .
     container_name: peo-app
+    group_add:
+      - "${DOCKER_GID:?Run node scripts/setup-local.mjs to configure Docker socket access}"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       postgres:
         condition: service_healthy
@@ -60,8 +61,18 @@ services:
       GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET:-}
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-jaeger:4317}
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8080}
+      ORCHESTRATOR_CONTAINER: peo-app
+      PREVIEW_REPOSITORY: ${PREVIEW_REPOSITORY:-psontay/todolist}
+      PREVIEW_ALLOWED_ACTOR: ${PREVIEW_ALLOWED_ACTOR:-psontay}
+      PREVIEW_QUOTA: ${PREVIEW_QUOTA:-5}
+      PREVIEW_TTL: ${PREVIEW_TTL:-24h}
+      DELETION_GRACE_PERIOD: ${DELETION_GRACE_PERIOD:-10m}
+      CLEANUP_INTERVAL: ${CLEANUP_INTERVAL:-5s}
+      PROVISION_TIMEOUT: ${PROVISION_TIMEOUT:-20m}
+      PREVIEW_READY_TIMEOUT: ${PREVIEW_READY_TIMEOUT:-3m}
     ports:
-      - "8080:8080"
+      - "127.0.0.1:18080:8080"
+    stop_grace_period: 120s
 
 volumes:
   pgdata:

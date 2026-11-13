@@ -27,7 +27,8 @@ const prColumns = `id, repo, number, author, commit_hash, status`
 // khớp đúng công thức repo:id:commit_hash trong domain.PullRequest.IdempotencyKey().
 func (r *PullRequestRepository) FindByIdempotencyKey(ctx context.Context, key string) (*domain.PullRequest, error) {
 	row := r.pool.QueryRow(ctx,
-		`SELECT `+prColumns+` FROM pull_requests WHERE idempotency_key = $1`, key)
+		`SELECT `+prColumns+` FROM pull_requests WHERE idempotency_key = $1
+		 OR id = (SELECT pull_request_id FROM preview_environments WHERE idempotency_key=$1)`, key)
 
 	pr, err := scanPR(row)
 	if errors.Is(err, pgx.ErrNoRows) {

@@ -27,12 +27,14 @@ func (r *PullRequestRepository) FindByIdempotencyKey(_ context.Context, key stri
 	if !ok {
 		return nil, nil
 	}
-	return pr, nil
+	result := *pr
+	return &result, nil
 }
 
 func (r *PullRequestRepository) Save(_ context.Context, pr *domain.PullRequest) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.byKey[pr.IdempotencyKey()] = pr
+	result := *pr
+	r.byKey[pr.IdempotencyKey()] = &result
 	return nil
 }

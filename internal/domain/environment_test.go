@@ -103,6 +103,7 @@ func TestPreviewEnvironment_ReadyToDestroy(t *testing.T) {
 	t.Run("đã đánh dấu nhưng chưa hết grace period", func(t *testing.T) {
 		env := newEnv(time.Now(), time.Hour)
 		env.MarkForDeletion(markAt)
+		env.DeletionNotifiedAt = &markAt
 		if env.ReadyToDestroy(markAt.Add(5*time.Minute), grace) {
 			t.Error("chưa hết grace period thì chưa được destroy")
 		}
@@ -111,6 +112,7 @@ func TestPreviewEnvironment_ReadyToDestroy(t *testing.T) {
 	t.Run("đúng thời điểm hết grace period (chưa quá)", func(t *testing.T) {
 		env := newEnv(time.Now(), time.Hour)
 		env.MarkForDeletion(markAt)
+		env.DeletionNotifiedAt = &markAt
 		if env.ReadyToDestroy(markAt.Add(grace), grace) {
 			t.Error("đúng mốc hết hạn dùng After nên chưa được destroy")
 		}
@@ -119,6 +121,7 @@ func TestPreviewEnvironment_ReadyToDestroy(t *testing.T) {
 	t.Run("đã qua grace period", func(t *testing.T) {
 		env := newEnv(time.Now(), time.Hour)
 		env.MarkForDeletion(markAt)
+		env.DeletionNotifiedAt = &markAt
 		if !env.ReadyToDestroy(markAt.Add(grace+time.Nanosecond), grace) {
 			t.Error("đã qua grace period thì phải ReadyToDestroy")
 		}

@@ -1,0 +1,16 @@
+# Build only application sources. Neither .env nor the mistakenly staged .evn
+# can enter the build context or image layers.
+**
+!Dockerfile
+!.dockerignore
+!go.mod
+!go.sum
+!cmd/
+!cmd/**
+!internal/
+!internal/**
+!migrations/
+!migrations/**
+**/.env
+**/.env.*
+**/.evn

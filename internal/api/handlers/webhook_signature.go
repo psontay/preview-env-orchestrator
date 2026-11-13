@@ -34,9 +34,10 @@ func VerifyGitHubSignature(secret string, next http.Handler) http.Handler {
 			return
 		}
 
+		r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
-			http.Error(w, "cannot read body", http.StatusBadRequest)
+			http.Error(w, "cannot read body or payload exceeds 1 MiB", http.StatusRequestEntityTooLarge)
 			return
 		}
 		_ = r.Body.Close()

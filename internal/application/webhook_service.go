@@ -2,8 +2,9 @@ package application
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	"go.opentelemetry.io/otel"
@@ -29,7 +30,7 @@ func endSpanErr(span trace.Span, err error) {
 
 // ErrQuotaExceeded được trả về khi repo đã đạt giới hạn số environment
 // đang hoạt động đồng thời.
-var ErrQuotaExceeded = errors.New("quota exceeded for this repository")
+var ErrQuotaExceeded = domain.ErrQuotaExceeded
 
 // WebhookService là một Domain/Application Service: nó điều phối các
 // Aggregate (PullRequest, PreviewEnvironment) và các port bên ngoài
@@ -45,7 +46,11 @@ type WebhookService struct {
 	defaultTTL domain.TTL
 	// baseURL là địa chỉ công khai của chính service này, dùng để dựng
 	// link "Hủy lệnh xoá" gửi kèm comment PR.
-	baseURL string
+	baseURL          string
+	runtimeCtx       context.Context
+	provisionTimeout time.Duration
+	cancelSigningKey string
+	jobs             sync.WaitGroup
 }
 
 func NewWebhookService(
@@ -58,15 +63,24 @@ func NewWebhookService(
 	baseURL string,
 ) *WebhookService {
 	return &WebhookService{
-		prRepo:     prRepo,
-		envRepo:    envRepo,
-		docker:     docker,
-		notifier:   notifier,
-		quota:      quota,
-		defaultTTL: defaultTTL,
-		baseURL:    baseURL,
+		prRepo:           prRepo,
+		envRepo:          envRepo,
+		docker:           docker,
+		notifier:         notifier,
+		quota:            quota,
+		defaultTTL:       defaultTTL,
+		baseURL:          baseURL,
+		runtimeCtx:       context.Background(),
+		provisionTimeout: 20 * time.Minute,
 	}
 }
+
+// ConfigureRuntime is called once at the composition root before serving.
+func (s *WebhookService) ConfigureRuntime(ctx context.Context, timeout time.Duration, cancelKey string) {
+	s.runtimeCtx, s.provisionTimeout, s.cancelSigningKey = ctx, timeout, cancelKey
+}
+
+func (s *WebhookService) Wait() { s.jobs.Wait() }
 
 // HandlePullRequestEvent xử lý một sự kiện webhook từ GitHub.
 // Luồng xử lý bám sát Giai đoạn 2 + 3 trong roadmap:
@@ -87,40 +101,6 @@ func (s *WebhookService) HandlePullRequestEvent(ctx context.Context, pr *domain.
 	ctx, dbSpan := tracer.Start(ctx, "webhook.persist_state")
 	dbSpan.SetAttributes(attribute.String("idempotency.key", key))
 
-	acquired, err := s.envRepo.TryAcquireLock(ctx, key)
-	if err != nil {
-		endSpanErr(dbSpan, err)
-		return err
-	}
-	if !acquired {
-		log.Printf("[webhook] key=%s đang được xử lý bởi tiến trình khác, bỏ qua", key)
-		dbSpan.AddEvent("idempotency: key đang được xử lý bởi tiến trình khác")
-		dbSpan.End()
-		return nil
-	}
-
-	existing, err := s.envRepo.FindByIdempotencyKey(ctx, key)
-	if err != nil {
-		endSpanErr(dbSpan, err)
-		return err
-	}
-	if existing != nil {
-		log.Printf("[webhook] key=%s đã có environment, bỏ qua (duplicate webhook)", key)
-		dbSpan.AddEvent("idempotency: environment đã tồn tại, bỏ qua duplicate webhook")
-		dbSpan.End()
-		return nil
-	}
-
-	active, err := s.envRepo.CountActiveByRepo(ctx, pr.Repo)
-	if err != nil {
-		endSpanErr(dbSpan, err)
-		return err
-	}
-	if s.quota.IsExceeded(active) {
-		endSpanErr(dbSpan, ErrQuotaExceeded)
-		return ErrQuotaExceeded
-	}
-
 	if err := s.prRepo.Save(ctx, pr); err != nil {
 		endSpanErr(dbSpan, err)
 		return err
@@ -133,12 +113,18 @@ func (s *WebhookService) HandlePullRequestEvent(ctx context.Context, pr *domain.
 		Status:         domain.EnvProvisioning,
 		CreatedAt:      time.Now(),
 		TTL:            s.defaultTTL,
+		Repo:           pr.Repo,
+		CommitSHA:      pr.CommitHash,
 	}
-	if err := s.envRepo.Save(ctx, env); err != nil {
+	acquired, err := s.envRepo.Reserve(ctx, env, s.quota)
+	if err != nil {
 		endSpanErr(dbSpan, err)
 		return err
 	}
 	dbSpan.End()
+	if !acquired {
+		return nil
+	}
 
 	// ---- Span 3: provisioning Docker (sống trong goroutine riêng) ----
 	// context.WithoutCancel: lấy lại toàn bộ value của parentCtx (trong đó
@@ -148,16 +134,36 @@ func (s *WebhookService) HandlePullRequestEvent(ctx context.Context, pr *domain.
 	// context.Background() thì span provisioning sẽ mất liên kết với trace
 	// gốc — nhìn trên Jaeger nó thành một trace rời, không biết thuộc
 	// webhook nào.
-	provisionCtx := context.WithoutCancel(parentCtx)
+	provisionCtx, cancel := context.WithTimeout(context.WithoutCancel(parentCtx), s.provisionTimeout)
+	stop := context.AfterFunc(s.runtimeCtx, cancel)
 	provisionCtx, dockerSpan := tracer.Start(provisionCtx, "webhook.provision_docker")
 	dockerSpan.SetAttributes(attribute.String("idempotency.key", key))
 
 	// Provisioning chạy trong goroutine riêng — HTTP handler trả về
-	// 202 Accepted ngay lập tức, không chờ Docker dựng xong. Kết quả được
-	// truyền về qua channel để cập nhật DB và comment vào PR khi hoàn tất.
-	resultCh := make(chan provisionOutcome, 1)
-	go s.provisionAsync(provisionCtx, req(pr, env), resultCh)
-	go s.awaitProvisionResult(provisionCtx, dockerSpan, pr, env, resultCh)
+	// 202 Accepted ngay lập tức, không chờ Docker dựng xong.
+	s.jobs.Add(1)
+	go func() {
+		defer s.jobs.Done()
+		defer cancel()
+		defer stop()
+		defer dockerSpan.End()
+		if cleanupErr := s.docker.Destroy(provisionCtx, env.ID); cleanupErr != nil {
+			s.completeProvision(
+				provisionCtx,
+				dockerSpan,
+				pr,
+				env,
+				provisionOutcome{
+					result: ProvisionResult{ContainerID: env.ID},
+					err:    fmt.Errorf("clean previous failed preview: %w", cleanupErr),
+				},
+			)
+			return
+		}
+		s.comment(provisionCtx, pr, "Building `"+pr.CommitHash+"`.")
+		result, provisionErr := s.docker.Provision(provisionCtx, req(pr, env))
+		s.completeProvision(provisionCtx, dockerSpan, pr, env, provisionOutcome{result, provisionErr})
+	}()
 
 	return nil
 }
@@ -169,31 +175,40 @@ type provisionOutcome struct {
 
 func req(pr *domain.PullRequest, env *domain.PreviewEnvironment) ProvisionRequest {
 	return ProvisionRequest{
-		Image:       "myapp/preview:latest",
-		SeedSQLPath: "/seed/init.sql",
-		EnvID:       env.ID,
+		EnvID:     env.ID,
+		Repo:      pr.Repo,
+		CommitSHA: pr.CommitHash,
 	}
 }
 
-func (s *WebhookService) provisionAsync(ctx context.Context, req ProvisionRequest, out chan<- provisionOutcome) {
-	result, err := s.docker.Provision(ctx, req)
-	out <- provisionOutcome{result: result, err: err}
-}
-
-func (s *WebhookService) awaitProvisionResult(ctx context.Context, span trace.Span, pr *domain.PullRequest, env *domain.PreviewEnvironment, resultCh <-chan provisionOutcome) {
-	// span chính là dockerSpan mở ở HandlePullRequestEvent. Đóng nó ở đây
-	// — trong goroutine — vì đây mới là lúc bước provisioning thật sự
-	// kết thúc, chứ không phải lúc HTTP handler return.
-	defer span.End()
-	outcome := <-resultCh
-
+func (s *WebhookService) completeProvision(
+	ctx context.Context,
+	span trace.Span,
+	pr *domain.PullRequest,
+	env *domain.PreviewEnvironment,
+	outcome provisionOutcome,
+) {
+	persistCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 15*time.Second)
+	defer cancel()
 	if outcome.err != nil {
 		span.RecordError(outcome.err)
 		span.SetStatus(codes.Error, outcome.err.Error())
 		log.Printf("[webhook] provisioning thất bại cho key=%s: %v", env.IdempotencyKey, outcome.err)
 		env.Status = domain.EnvFailed
-		_ = s.envRepo.Save(ctx, env)
-		_ = s.notifier.CommentOnPR(ctx, pr.Repo, pr.Number, "❌ Tạo môi trường preview thất bại, vui lòng xem log.")
+		if outcome.result.ContainerID != "" || outcome.result.ResourceGroup != "" {
+			env.ContainerID = outcome.result.ContainerID
+			env.ResourceGroup = outcome.result.ResourceGroup
+			env.MarkForDeletion(time.Now())
+		}
+		env.LastError = outcome.err.Error()
+		if err := s.envRepo.Save(persistCtx, env); err != nil {
+			log.Printf("[webhook] save FAILED: %v", err)
+		}
+		s.comment(
+			persistCtx,
+			pr,
+			"❌ Tạo preview thất bại cho commit `"+pr.CommitHash+"`. Xem log orchestrator để biết bước gặp lỗi.",
+		)
 		return
 	}
 
@@ -201,9 +216,72 @@ func (s *WebhookService) awaitProvisionResult(ctx context.Context, span trace.Sp
 	env.Status = domain.EnvRunning
 	env.URL = outcome.result.URL
 	env.ContainerID = outcome.result.ContainerID
-	_ = s.envRepo.Save(ctx, env)
-	_ = s.notifier.CommentOnPR(ctx, pr.Repo, pr.Number,
-		"✅ Môi trường preview của bạn đã sẵn sàng tại: "+outcome.result.URL+
-			"\n\nMôi trường sẽ tự động bị xoá khi hết TTL. Nếu muốn giữ lại, "+
-			"hủy lệnh xoá tại: "+cancelDeletionURL(s.baseURL, env))
+	env.ResourceGroup = outcome.result.ResourceGroup
+	expires := time.Now().Add(env.TTL.Duration)
+	env.ExpiresAt = &expires
+	if err := s.envRepo.Save(persistCtx, env); err != nil {
+		log.Printf("[webhook] save RUNNING failed; removing owned preview: %v", err)
+		cleanupCtx, cleanupCancel := context.WithTimeout(context.WithoutCancel(ctx), 45*time.Second)
+		defer cleanupCancel()
+		target := env.ResourceGroup
+		if target == "" {
+			target = env.ContainerID
+		}
+		if cleanupErr := s.docker.Destroy(cleanupCtx, target); cleanupErr != nil {
+			log.Printf("[webhook] compensation failed: %v", cleanupErr)
+		}
+		return
+	}
+	s.comment(
+		persistCtx,
+		pr,
+		fmt.Sprintf(
+			"Preview commit `%s` ready: %s\n\nHealth: %s/actuator/health\nTTL: %s, since backend running.\n Cancel for deletion and renew for 2 mins (only grace period): %s\nURL localhost on machine running docker.",
+			pr.CommitHash,
+			env.URL,
+			env.URL,
+			env.TTL.Duration,
+			CancelDeletionURL(s.baseURL, env.ID, s.cancelSigningKey),
+		),
+	)
+}
+
+func (s *WebhookService) comment(ctx context.Context, pr *domain.PullRequest, message string) {
+	if err := s.notifier.CommentOnPR(ctx, pr.Repo, pr.Number, message); err != nil {
+		log.Printf("[webhook] GitHub comment failed for %s#%d: %v", pr.Repo, pr.Number, err)
+	}
+}
+
+// Recover removes partially provisioned resources before replaying durable
+// reservations after a single-instance restart.
+func (s *WebhookService) Recover(ctx context.Context) error {
+	envs, err := s.envRepo.FindProvisioning(ctx)
+	if err != nil {
+		return err
+	}
+	for _, env := range envs {
+		pr, err := s.prRepo.FindByIdempotencyKey(ctx, env.IdempotencyKey)
+		if err != nil {
+			return err
+		}
+		if pr == nil {
+			return fmt.Errorf("missing PR for pending environment %s", env.ID)
+		}
+		pr.CommitHash = env.CommitSHA
+		// Fail closed: do not start a new build before stale resources are gone.
+		if err := s.docker.Destroy(ctx, env.ID); err != nil {
+			return fmt.Errorf("recover preview: %w", err)
+		}
+		jobCtx, cancel := context.WithTimeout(ctx, s.provisionTimeout)
+		jobCtx, span := tracer.Start(jobCtx, "webhook.recover_provisioning")
+		s.jobs.Add(1)
+		go func(pr *domain.PullRequest, env *domain.PreviewEnvironment) {
+			defer s.jobs.Done()
+			defer cancel()
+			defer span.End()
+			result, err := s.docker.Provision(jobCtx, req(pr, env))
+			s.completeProvision(jobCtx, span, pr, env, provisionOutcome{result, err})
+		}(pr, env)
+	}
+	return nil
 }

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"regexp"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -29,17 +30,31 @@ type githubPullRequestPayload struct {
 			Login string `json:"login"`
 		} `json:"user"`
 		Head struct {
-			Sha string `json:"sha"`
+			Sha  string `json:"sha"`
+			Repo struct {
+				FullName string `json:"full_name"`
+			} `json:"repo"`
 		} `json:"head"`
 	} `json:"pull_request"`
 	Repository struct {
 		FullName string `json:"full_name"`
 	} `json:"repository"`
+	Sender struct {
+		Login string `json:"login"`
+	} `json:"sender"`
 }
 
 type WebhookHandler struct {
-	service *application.WebhookService
+	service      *application.WebhookService
+	repository   string
+	allowedActor string
 }
+
+func (h *WebhookHandler) ConfigureRepository(repo, actor string) {
+	h.repository, h.allowedActor = repo, actor
+}
+
+var fullCommitSHA = regexp.MustCompile(`^[a-fA-F0-9]{40}$`)
 
 func NewWebhookHandler(service *application.WebhookService) *WebhookHandler {
 	return &WebhookHandler{service: service}
@@ -60,6 +75,13 @@ func (h *WebhookHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	if event := r.Header.Get("X-GitHub-Event"); event == "ping" {
+		w.WriteHeader(http.StatusOK)
+		return
+	} else if event != "" && event != "pull_request" {
+		w.WriteHeader(http.StatusAccepted)
+		return
+	}
 
 	var payload githubPullRequestPayload
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
@@ -72,6 +94,20 @@ func (h *WebhookHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if payload.Action != "opened" && payload.Action != "synchronize" && payload.Action != "reopened" {
 		w.WriteHeader(http.StatusAccepted)
 		return
+	}
+	if payload.PullRequest.NodeID == "" || payload.Repository.FullName == "" || payload.PullRequest.Number <= 0 || payload.PullRequest.Head.Sha == "" {
+		http.Error(w, "missing pull request fields", http.StatusBadRequest)
+		return
+	}
+	if h.repository != "" {
+		if payload.Repository.FullName != h.repository || payload.PullRequest.Head.Repo.FullName != h.repository || payload.Sender.Login != h.allowedActor {
+			http.Error(w, "repository, fork or sender is not allowed for this local runner", http.StatusForbidden)
+			return
+		}
+		if !fullCommitSHA.MatchString(payload.PullRequest.Head.Sha) {
+			http.Error(w, "invalid commit SHA", http.StatusBadRequest)
+			return
+		}
 	}
 
 	pr := &domain.PullRequest{

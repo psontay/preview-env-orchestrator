@@ -36,6 +36,17 @@ func migrationsDir(t *testing.T) string {
 // và trả về pool đã sẵn sàng. Container được dọn qua t.Cleanup.
 func newTestPool(t *testing.T) *pgxpool.Pool {
 	t.Helper()
+	return newTestPoolWithMigrations(t, migrationsDir(t))
+}
+
+func newTestPoolWithMigrations(t *testing.T, dir string) *pgxpool.Pool {
+	t.Helper()
+	pool, _ := newTestDatabase(t, dir)
+	return pool
+}
+
+func newTestDatabase(t *testing.T, dir string) (*pgxpool.Pool, *tcpostgres.PostgresContainer) {
+	t.Helper()
 	ctx := context.Background()
 
 	ctr, err := tcpostgres.Run(ctx, "postgres:16-alpine",
@@ -63,10 +74,10 @@ func newTestPool(t *testing.T) *pgxpool.Pool {
 	}
 	t.Cleanup(pool.Close)
 
-	if err := pgadapter.RunMigrations(ctx, pool, migrationsDir(t)); err != nil {
+	if err := pgadapter.RunMigrations(ctx, pool, dir); err != nil {
 		t.Fatalf("chạy migration: %v", err)
 	}
-	return pool
+	return pool, ctr
 }
 
 func TestPullRequestRepository(t *testing.T) {

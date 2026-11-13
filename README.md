@@ -4,265 +4,188 @@
 [![Go 1.25](https://img.shields.io/badge/Go-1.25-00ADD8?logo=go&logoColor=white)](go.mod)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Cổng điều phối môi trường preview theo Pull Request, thiết kế theo
-Domain-Driven Design. Nhận webhook GitHub → kiểm tra idempotency & quota →
-dựng môi trường (Docker) bất đồng bộ → comment link vào PR → tự động dọn
-dẹp theo TTL với cơ chế "destructive safety" (đánh dấu trước, xoá sau).
+Cổng điều phối môi trường preview theo Pull Request. Mỗi khi một PR được mở
+hoặc có commit mới, hệ thống tự build đúng code của commit đó, dựng một môi
+trường tạm bằng Docker, comment URL vào PR, rồi tự dọn khi hết hạn.
 
-Toàn bộ code trong repo này **build và chạy được ngay** (`go build ./...`
-và `go test ./...` đều pass) bằng các adapter in-memory + Docker giả lập,
-để bạn thấy được luồng nghiệp vụ chạy thật trước khi cắm Postgres/Docker
-SDK thật vào.
+## Tính năng chính
 
-## Kiến trúc (DDD, 3 lớp)
+- **Webhook GitHub** (`opened`, `synchronize`, `reopened`) có xác thực chữ ký HMAC-SHA256.
+- **Idempotency**: cùng một event gửi lại không tạo thêm môi trường.
+- **Quota**: giới hạn số preview đang chạy trên mỗi repository (mặc định 5).
+- **TTL + grace**: hết hạn thì cảnh báo trên PR, chờ một khoảng ân hạn rồi mới xoá.
+- **Huỷ xoá một lần**: người dùng bấm link trong comment để gia hạn thêm 2 phút.
+- **Dọn tài nguyên**: xoá container, network, volume của preview và báo lại trên PR.
+- **Quan sát**: trace OpenTelemetry gửi tới Jaeger.
+
+Hiện stack preview được làm riêng cho app TodoList (Java): app + PostgreSQL +
+Redis + RabbitMQ + Mailpit, mỗi preview một network riêng.
+
+## Luồng hoạt động
 
 ```
-cmd/api/main.go              # Composition Root — nơi DUY NHẤT wiring implementation cụ thể
+GitHub PR event ──► POST /webhooks/github
+                      │ kiểm tra chữ ký, idempotency, quota
+                      ▼
+              tải source đúng commit SHA ──► Docker build ──► chạy stack
+                      │
+                      ▼
+              comment URL vào PR  (TTL bắt đầu khi app sẵn sàng)
+                      │
+          hết TTL ──► cảnh báo ──► grace ──► dọn dẹp ──► comment đã xoá
+```
+
+## Kiến trúc
+
+Thiết kế theo DDD / ports & adapters:
+
+```
+cmd/api/                      # Composition root: config, wiring, HTTP server
 internal/
-  domain/                    # Entities, Value Objects, Repository interfaces (KHÔNG phụ thuộc gì bên ngoài)
-    pullrequest.go
-    environment.go
-    valueobjects.go          # Quota, TTL
-    repository.go            # PullRequestRepository, EnvironmentRepository (ports)
-  application/                # Domain Services điều phối use case, phụ thuộc domain + port
-    ports.go                  # DockerOrchestrationService, GitHubNotifier (ports)
-    webhook_service.go        # Use case chính: nhận PR event -> idempotency -> quota -> provision
-    cleanup_service.go        # Background worker: TTL sweep + destructive safety
-  infrastructure/             # Adapter — implement các port ở trên
-    memory/                   # In-memory (demo/test): PR repo, Env repo, GitHub notifier giả
-    docker/                   # MockService (giả lập docker); xem docs/ để thay bằng Docker SDK thật
-  api/handlers/                # HTTP <-> domain translation, KHÔNG chứa business logic
-docs/                          # Hướng dẫn tích hợp Docker SDK thật, Postgres, OpenTelemetry
-migrations/001_init.sql        # Schema Postgres khớp với domain model
+  domain/                     # Entity, value object, repository ports
+  application/                # Use case: webhook, provisioning, cleanup
+  api/handlers/               # HTTP handlers
+  infrastructure/
+    postgres/                 # Repository thật + migrations
+    memory/                   # Repository in-memory (dev/test)
+    docker/                   # Docker SDK (và mock)
+    github/                   # Comment PR, tải archive source
+migrations/                   # Schema SQL
+scripts/                      # Setup .env, tra trạng thái preview
+docs/                         # Tài liệu chi tiết
 ```
 
-**Nguyên tắc phân bổ trách nhiệm (SOLID/DDD):**
-- `domain/` không import bất kỳ package nào khác trong repo — nó là lõi bất biến.
-- `application/` chỉ phụ thuộc `domain` + các port do chính nó định nghĩa
-  (`DockerOrchestrationService`, `GitHubNotifier`) — không biết Docker SDK
-  hay Postgres là gì.
-- `infrastructure/` implement các port đó — đây là nơi duy nhất "bẩn" với
-  chi tiết công nghệ cụ thể.
-- Idempotency là trách nhiệm của `EnvironmentRepository.TryAcquireLock`
-  (một hành vi lưu trữ), còn Quota là trách nhiệm của `domain.Quota`
-  (một business rule thuần) — được `WebhookService` phối hợp gọi theo
-  đúng thứ tự, không lẫn logic vào nhau.
+## Yêu cầu
 
-### Sơ đồ lớp — Aggregate, Value Object, Service, Port/Adapter
+- Go 1.25+
+- Docker và Docker Compose
+- Node.js (cho các script trong `scripts/`)
+- GitHub Personal Access Token (quyền đọc repo và comment PR)
+- Một URL công khai để GitHub gọi webhook, ví dụ Cloudflare Quick Tunnel
 
-```mermaid
-classDiagram
-    direction LR
+## Cài đặt và chạy
 
-    class PullRequest {
-        <<Aggregate Root>>
-        +string ID
-        +string Repo
-        +int Number
-        +string CommitHash
-        +PRStatus Status
-        +IdempotencyKey() string
-    }
+### Cách 1: Chạy nhanh để thử (không cần Docker/GitHub thật)
 
-    class PreviewEnvironment {
-        <<Aggregate Root>>
-        +string ID
-        +string PullRequestID
-        +EnvStatus Status
-        +string URL
-        +string ContainerID
-        +TTL TTL
-        +time MarkedForDeletionAt
-        +IsExpired(now) bool
-        +MarkForDeletion(now)
-        +CancelDeletion()
-        +ReadyToDestroy(now, grace) bool
-    }
-
-    class Quota {
-        <<Value Object>>
-        +int MaxEnvironments
-        +IsExceeded(current) bool
-    }
-
-    class TTL {
-        <<Value Object>>
-        +Duration Duration
-        +ExpiresAt(from) time
-    }
-
-    class PullRequestRepository {
-        <<port>>
-        +FindByIdempotencyKey(key)
-        +Save(pr)
-    }
-    class EnvironmentRepository {
-        <<port>>
-        +TryAcquireLock(key) bool
-        +CountActiveByRepo(repo) int
-        +FindExpired(now)
-        +FindMarkedForDeletion(now)
-        +Save(env)
-    }
-    class DockerOrchestrationService {
-        <<port>>
-        +Provision(req) ProvisionResult
-        +Destroy(containerID)
-    }
-    class GitHubNotifier {
-        <<port>>
-        +CommentOnPR(repo, num, msg)
-    }
-
-    class WebhookService {
-        <<Domain Service>>
-        +HandlePullRequestEvent(evt)
-    }
-    class CleanupService {
-        <<Domain Service>>
-        +SweepOnce(now)
-    }
-
-    class PostgresEnvRepository {
-        <<adapter>>
-    }
-    class MemoryEnvRepository {
-        <<adapter / test double>>
-    }
-    class DockerRealService {
-        <<adapter>>
-    }
-    class DockerMockService {
-        <<adapter / test double>>
-    }
-    class GitHubRESTNotifier {
-        <<adapter>>
-    }
-
-    PreviewEnvironment *-- TTL : composition
-    PullRequest ..> PreviewEnvironment : sinh ra (idempotency key)
-    WebhookService --> Quota : kiểm tra business rule
-    WebhookService ..> PullRequestRepository
-    WebhookService ..> EnvironmentRepository
-    WebhookService ..> DockerOrchestrationService
-    WebhookService ..> GitHubNotifier
-    CleanupService ..> EnvironmentRepository
-    CleanupService ..> DockerOrchestrationService
-    CleanupService ..> GitHubNotifier
-
-    EnvironmentRepository <|.. PostgresEnvRepository
-    EnvironmentRepository <|.. MemoryEnvRepository
-    DockerOrchestrationService <|.. DockerRealService
-    DockerOrchestrationService <|.. DockerMockService
-    GitHubNotifier <|.. GitHubRESTNotifier
-```
-
-### Luồng nghiệp vụ — từ webhook tới cleanup
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant GH as GitHub
-    participant H as webhook_handler
-    participant WS as WebhookService
-    participant ER as EnvironmentRepository
-    participant Q as domain.Quota
-    participant DK as DockerOrchestrationService
-    participant GN as GitHubNotifier
-    participant CS as CleanupService (worker)
-
-    GH->>H: POST /webhooks/github (+ chữ ký HMAC-SHA256)
-    H->>H: VerifyGitHubSignature
-    H->>WS: HandlePullRequestEvent
-    WS->>ER: TryAcquireLock(idempotencyKey)
-    alt key đã tồn tại
-        ER-->>WS: false → dừng (idempotent, không tạo trùng)
-    else lock được cấp
-        WS->>ER: CountActiveByRepo(repo)
-        WS->>Q: IsExceeded(current)?
-        alt vượt quota
-            Q-->>WS: true → ErrQuotaExceeded
-        else còn quota
-            WS->>DK: Provision(image, seedSQL) [async]
-            DK-->>WS: ProvisionResult{containerID, URL}
-            WS->>ER: Save(env RUNNING)
-            WS->>GN: CommentOnPR("URL sẵn sàng + link Hủy lệnh xoá")
-        end
-    end
-
-    loop mỗi N phút
-        CS->>ER: FindExpired(now)
-        CS->>ER: Save(env MARK_FOR_DELETION)  %% đánh dấu, chưa xoá
-        CS->>GN: CommentOnPR("sẽ xoá sau grace period — Hủy tại /cancel-deletion")
-        CS->>ER: FindMarkedForDeletion(now)
-        alt ReadyToDestroy(now, grace)
-            CS->>DK: Destroy(containerID)
-            CS->>ER: Save(env DESTROYED)
-        else vừa CancelDeletion()
-            CS-->>CS: bỏ qua, env đã quay lại RUNNING
-        end
-    end
-```
-
-## Chạy thử
+Dùng bộ nhớ trong process và adapter giả lập:
 
 ```bash
+git clone https://github.com/psontay/preview-env-orchestrator.git
+cd preview-env-orchestrator
 go run ./cmd/api
-# server lắng nghe tại :8080
-
-curl -X POST http://localhost:8080/webhooks/github \
-  -H "Content-Type: application/json" \
-  -d '{
-    "action": "opened",
-    "pull_request": {
-      "node_id": "PR_kwDOtest",
-      "number": 7,
-      "user": {"login": "alice"},
-      "head": {"sha": "deadbeef"}
-    },
-    "repository": {"full_name": "org/app"}
-  }'
-# -> 202 Accepted, log server sẽ in comment "Môi trường preview đã sẵn sàng..."
+curl http://127.0.0.1:8080/healthz
 ```
 
-## Test
+Chạy test:
 
 ```bash
-go test ./... -v
+go test ./... -race
 ```
 
-Bộ test (`internal/application/webhook_service_test.go`) đã verify:
-1. Gửi trùng webhook cho cùng 1 commit → chỉ tạo 1 environment (idempotency).
-2. Vượt quota → trả về `ErrQuotaExceeded`.
-3. TTL sweep → environment hết hạn được đánh dấu `MARK_FOR_DELETION` trước,
-   chỉ bị huỷ thật sau khi qua grace period (destructive safety).
+### Cách 2: Chạy đầy đủ bằng Docker Compose (Postgres, Docker và GitHub thật)
 
-## Lên production: còn thiếu gì?
+1. **Cấu hình `.env`**
 
-Repo này cố tình dùng adapter in-memory/mock để bạn chạy được ngay không
-cần hạ tầng. Trước khi deploy thật, xem 3 tài liệu trong `docs/`:
+   ```bash
+   cp .env.example .env
+   ```
 
-| Việc cần làm | Tài liệu |
+   Điền ít nhất `GITHUB_TOKEN`, `GITHUB_WEBHOOK_SECRET`, `POSTGRES_PASSWORD`,
+   `PREVIEW_REPOSITORY` (dạng `owner/repo`) và `PREVIEW_ALLOWED_ACTOR`.
+   Hoặc để script tự thiết lập các giá trị cho chế độ thật:
+
+   ```bash
+   node scripts/setup-local.mjs --public-url https://YOUR-TUNNEL.trycloudflare.com
+   ```
+
+   Script ghi `.env` (quyền 0600), lấy `DOCKER_GID` và chuyển sang adapter thật.
+   Không commit `.env`.
+
+2. **Mở tunnel** để GitHub gọi được máy bạn:
+
+   ```bash
+   docker run --rm --network host cloudflare/cloudflared \
+     tunnel --url http://127.0.0.1:18080
+   ```
+
+   Đặt URL nhận được vào `PUBLIC_BASE_URL` trong `.env`.
+
+3. **Khởi động hệ thống**
+
+   ```bash
+   docker compose up -d --build
+   curl --fail http://127.0.0.1:18080/healthz
+   ```
+
+4. **Cấu hình webhook trên GitHub** (Settings → Webhooks của repo):
+   - Payload URL: `<PUBLIC_BASE_URL>/webhooks/github`
+   - Content type: `application/json`
+   - Secret: giá trị `GITHUB_WEBHOOK_SECRET`
+   - Event: *Pull requests*
+
+5. **Thử**: mở hoặc push commit vào một PR. Orchestrator sẽ comment trạng
+   thái build và URL preview vào PR.
+
+Dừng hệ thống (giữ dữ liệu):
+
+```bash
+docker compose down
+```
+
+### Địa chỉ hữu ích
+
+| Dịch vụ | URL |
 |---|---|
-| Thay `MockService` bằng Docker Engine SDK thật (không dùng CLI) | `docs/DOCKER_SDK_INTEGRATION.md` |
-| Thay in-memory repo bằng Postgres (dùng schema có sẵn) | `migrations/001_init.sql` |
-| Gắn OpenTelemetry trace 3 bước: nhận webhook → ghi DB → gọi Docker | `docs/OPENTELEMETRY.md` |
-| Gọi GitHub REST/GraphQL API thật thay vì in ra console | Dùng `google/go-github` hoặc gọi REST trực tiếp trong `GitHubNotifier.CommentOnPR` |
+| Orchestrator | http://127.0.0.1:18080 |
+| Jaeger UI | http://127.0.0.1:16686 |
+| Postgres (DBeaver) | `127.0.0.1:15432` |
 
-Tất cả các thay đổi trên chỉ cần sửa ở `internal/infrastructure/` và dây
-lại ở `cmd/api/main.go` — không cần đụng vào `domain/` hay `application/`.
+## Cấu hình chính
 
-## Đóng góp
+| Biến | Ý nghĩa | Mặc định |
+|---|---|---|
+| `STORAGE_DRIVER` | `memory` hoặc `postgres` | `memory` |
+| `DOCKER_DRIVER` | `mock` hoặc `real` | `mock` |
+| `GITHUB_DRIVER` | `mock` hoặc `real` | `mock` |
+| `PREVIEW_TTL` | Thời gian sống của preview | 24h |
+| `DELETION_GRACE_PERIOD` | Ân hạn sau cảnh báo | 10m |
+| `CLEANUP_INTERVAL` | Chu kỳ quét dọn | — |
+| `PREVIEW_QUOTA` | Số preview tối đa mỗi repo | 5 |
+| `PUBLIC_BASE_URL` | Origin công khai, dùng cho webhook và link huỷ | — |
 
-Dự án hoan nghênh đóng góp. Quy trình fork → nhánh → Conventional Commits →
-pull request, cùng các lệnh kiểm tra bắt buộc trước khi mở PR, được mô tả
-đầy đủ trong [CONTRIBUTING.md](CONTRIBUTING.md).
+Danh sách đầy đủ có trong [.env.example](.env.example).
 
-- Báo lỗi: dùng template **Bug report** trong `.github/ISSUE_TEMPLATE/`.
-- Đề xuất tính năng: dùng template **Feature request**.
-- Mọi PR cần điền [PULL_REQUEST_TEMPLATE.md](.github/PULL_REQUEST_TEMPLATE.md)
-  và giữ nguyên 4 điểm nhấn: Idempotency, Quota, TTL, Destructive-safety.
+## Lệnh thường dùng
 
-## License
+```bash
+make run           # chạy API server
+make build         # build binary vào ./bin/api
+make test          # chạy unit test
+make lint          # gofmt + go vet
+make compose-up    # docker compose up -d --build
+make compose-down  # gỡ stack, giữ volume
+```
 
-Phát hành theo giấy phép [MIT](LICENSE).
+Xem trạng thái một preview:
+
+```bash
+node scripts/preview.mjs <PR_NUMBER> --safe
+```
+
+## Tài liệu thêm
+
+- [Hướng dẫn chạy demo local](docs/LOCAL_DEMO.md)
+- [Triển khai database](docs/DATABASE_IMPLEMENTATION.md)
+- [Trạng thái kiểm thử](docs/TEST_STATUS.md)
+- [Đóng góp](CONTRIBUTING.md)
+
+## Giới hạn hiện tại
+
+- Chạy một instance orchestrator, chưa hỗ trợ nhiều replica.
+- Stack preview chuyên cho TodoList; app khác cần thiết kế thêm.
+- Phạm vi demo local; chưa đánh giá cho production.
+- Docker socket được mount vào container, chỉ dùng với repository và actor tin cậy.
+
+## Giấy phép
+
+[MIT](LICENSE)

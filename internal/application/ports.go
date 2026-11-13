@@ -1,6 +1,15 @@
 package application
 
-import "context"
+import (
+	"context"
+	"io"
+)
+
+// SourceArchiveProvider returns a bounded, sanitized tar build context for an
+// immutable commit. Authentication stays outside both the context and image.
+type SourceArchiveProvider interface {
+	Archive(ctx context.Context, repo, commitSHA string) (io.ReadCloser, error)
+}
 
 // DockerOrchestrationService là port mà application layer phụ thuộc vào.
 // Việc implement thật (bằng Docker SDK) nằm ở internal/infrastructure/docker,
@@ -15,11 +24,14 @@ type ProvisionRequest struct {
 	Image       string
 	SeedSQLPath string
 	EnvID       string
+	Repo        string
+	CommitSHA   string
 }
 
 type ProvisionResult struct {
-	ContainerID string
-	URL         string
+	ContainerID   string
+	URL           string
+	ResourceGroup string
 }
 
 // GitHubNotifier là port để post comment ngược lại vào Pull Request.
